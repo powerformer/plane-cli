@@ -142,6 +142,10 @@ old_versions() {
     [ -d "$path" ] || continue
     name=$(basename "$path")
     [ "$name" != "$current" ] || continue
+    case "$name" in
+      v[0-9]*) ;;
+      *) continue ;;
+    esac
     printf '%s\n' "$name"
   done
 }

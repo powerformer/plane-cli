@@ -59,9 +59,9 @@ try {
     $server = Start-Process -FilePath $python -ArgumentList @('-m', 'http.server', "$port", '--bind', '127.0.0.1') -WorkingDirectory $mirrorRoot -PassThru
     Wait-SmokeMirror "$mirrorUrl/$channel/versions/$version/metadata.json"
 
-    $env:PLANE_INSTALL_ROOT = Join-Path $tmpdir 'install'
+    $env:PLANE_INSTALL_ROOT = Join-Path (Join-Path $tmpdir 'home') '.local/share/plane'
     $env:PLANE_LOCAL_BIN_DIR = Join-Path $tmpdir 'bin'
-    $env:PLANE_HOME = Join-Path $tmpdir 'plane-home'
+    $env:PLANE_HOME = $env:PLANE_INSTALL_ROOT
     $env:PLANE_RELEASES_PUBLIC_URL = $mirrorUrl
     $skillPath = Join-Path $tmpdir 'agent/skills/plane-cli'
     New-Item -ItemType Directory -Force -Path $env:PLANE_INSTALL_ROOT, $env:PLANE_LOCAL_BIN_DIR | Out-Null
@@ -89,6 +89,7 @@ try {
     if ($env:SMOKE_LATEST -eq '1') {
         Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe')
         $env:PLANE_INSTALL_ROOT = Join-Path $tmpdir 'latest-smoke'
+        $env:PLANE_HOME = $env:PLANE_INSTALL_ROOT
         & (Join-Path $root 'manage.ps1') install --channel $channel --retain=false
         & (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe') --version
         & (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe') help

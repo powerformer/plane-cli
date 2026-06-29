@@ -65,9 +65,9 @@ server_pid=$!
 wait_for_mirror "$mirror_url/$CHANNEL/versions/$VERSION/metadata.json"
 
 export HOME="$tmpdir/home"
-export PLANE_INSTALL_ROOT="$tmpdir/install"
+export PLANE_INSTALL_ROOT="$HOME/.local/share/plane"
 export PLANE_LOCAL_BIN_DIR="$tmpdir/bin"
-export PLANE_HOME="$tmpdir/plane-home"
+export PLANE_HOME="$PLANE_INSTALL_ROOT"
 export PLANE_RELEASES_PUBLIC_URL="$mirror_url"
 skill_path="$tmpdir/agent/skills/plane-cli"
 mkdir -p "$HOME" "$PLANE_INSTALL_ROOT" "$PLANE_LOCAL_BIN_DIR" "$tmpdir/agent/skills"
@@ -86,10 +86,12 @@ sh "$ROOT/manage.sh" uninstall --version "$VERSION"
 
 if [ "${SMOKE_LATEST:-}" = "1" ]; then
   rm -f "$PLANE_LOCAL_BIN_DIR/plane"
-  rm -rf "$PLANE_INSTALL_ROOT/latest-smoke"
-  sh "$ROOT/manage.sh" install --channel "$CHANNEL" --install-root "$PLANE_INSTALL_ROOT/latest-smoke" --retain=false
+  export PLANE_INSTALL_ROOT="$tmpdir/latest-smoke"
+  export PLANE_HOME="$PLANE_INSTALL_ROOT"
+  rm -rf "$PLANE_INSTALL_ROOT"
+  sh "$ROOT/manage.sh" install --channel "$CHANNEL" --install-root "$PLANE_INSTALL_ROOT" --retain=false
   "$PLANE_LOCAL_BIN_DIR/plane" --version
   "$PLANE_LOCAL_BIN_DIR/plane" help
-  sh "$ROOT/manage.sh" uninstall --install-root "$PLANE_INSTALL_ROOT/latest-smoke"
-  [ ! -e "$PLANE_INSTALL_ROOT/latest-smoke" ] || { printf '%s\n' "full uninstall left $PLANE_INSTALL_ROOT/latest-smoke" >&2; exit 1; }
+  sh "$ROOT/manage.sh" uninstall --install-root "$PLANE_INSTALL_ROOT"
+  [ ! -e "$PLANE_INSTALL_ROOT" ] || { printf '%s\n' "full uninstall left $PLANE_INSTALL_ROOT" >&2; exit 1; }
 fi

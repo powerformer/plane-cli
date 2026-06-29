@@ -78,7 +78,7 @@ function Installed-Versions {
     if (![System.IO.Directory]::Exists($installRoot)) {
         return @()
     }
-    return @(Get-ChildItem -LiteralPath $installRoot -Directory | Where-Object { $_.Name -ne $Current } | ForEach-Object { $_.Name })
+    return @(Get-ChildItem -LiteralPath $installRoot -Directory | Where-Object { $_.Name -ne $Current -and $_.Name -match '^v[0-9]+' } | ForEach-Object { $_.Name })
 }
 
 function Should-Retain {
