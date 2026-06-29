@@ -9,11 +9,9 @@ function Show-Usage {
 plane repo operator
 
 Usage:
-  ./cli.ps1 land [options]
   ./cli.ps1 release --channel stable|beta [options]
 
 Commands:
-  land       Create or update the GitHub PR for the current branch.
   release    Trigger a release workflow.
 '@ | Write-Output
 }
@@ -23,7 +21,7 @@ switch ($command) {
         Show-Usage
         exit 0
     }
-    { $_ -in @('land', 'release') } {}
+    'release' {}
     default {
         [Console]::Error.WriteLine("unknown command: $command")
         Show-Usage | ForEach-Object { [Console]::Error.WriteLine($_) }
