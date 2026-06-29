@@ -11,6 +11,31 @@ INSTALL_ROOT=${PLANE_INSTALL_ROOT:-"$HOME/.local/share/plane"}
 LOCAL_BIN_DIR=${PLANE_LOCAL_BIN_DIR:-"$HOME/.local/bin"}
 RETAIN=${PLANE_RETAIN:-}
 
+print_help() {
+  cat <<'EOF'
+plane manager
+
+Usage:
+  manage.sh install [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
+  manage.sh uninstall [--version vX.Y.Z]
+
+Environment:
+  PLANE_RELEASES_PUBLIC_URL  # default: https://releases.plane.powerformer.net
+  PLANE_CHANNEL
+  PLANE_VERSION
+  PLANE_INSTALL_ROOT
+  PLANE_LOCAL_BIN_DIR
+  PLANE_RETAIN
+EOF
+}
+
+case "$COMMAND" in
+  -h|--help|help)
+    print_help
+    exit 0
+    ;;
+esac
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --channel)
@@ -67,21 +92,7 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     -h|--help|help)
-      cat <<'EOF'
-plane manager
-
-Usage:
-  manage.sh install [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
-  manage.sh uninstall [--version vX.Y.Z]
-
-Environment:
-  PLANE_RELEASES_PUBLIC_URL  # default: https://releases.plane.powerformer.net
-  PLANE_CHANNEL
-  PLANE_VERSION
-  PLANE_INSTALL_ROOT
-  PLANE_LOCAL_BIN_DIR
-  PLANE_RETAIN
-EOF
+      print_help
       exit 0
       ;;
     *)
