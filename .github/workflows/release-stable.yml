@@ -193,6 +193,7 @@ jobs:
         run: bash .github/scripts/release/github/cleanup-artifacts.sh
 
   smoke:
+    if: ${{ vars.PLANE_RELEASE_PUBLIC_SMOKE_IN_ACTIONS == '1' }}
     needs: [metadata, publish]
     strategy:
       fail-fast: false
