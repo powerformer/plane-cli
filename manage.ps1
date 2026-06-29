@@ -153,9 +153,9 @@ function Remove-EmptyDir {
     param([string]$Path)
     if ([System.IO.Directory]::Exists($Path)) {
         try {
-            Remove-Item -Force -ErrorAction Stop $Path
+            [System.IO.Directory]::Delete($Path, $false)
         }
-        catch [System.IO.IOException] {}
+        catch {}
     }
 }
 
