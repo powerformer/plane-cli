@@ -184,7 +184,6 @@ jobs:
         run: bash .github/scripts/release/github/cleanup-artifacts.sh
 
   smoke:
-    if: ${{ vars.PLANE_RELEASE_PUBLIC_SMOKE_IN_ACTIONS == '1' }}
     needs: [metadata, publish]
     strategy:
       fail-fast: false
@@ -193,6 +192,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PLANE_RELEASES_PUBLIC_URL: ${{ vars.PLANE_RELEASES_PUBLIC_URL }}
+      PLANE_RELEASES_S3_AK: ${{ secrets.PLANE_RELEASES_S3_AK }}
+      PLANE_RELEASES_S3_BUCKET: ${{ secrets.PLANE_RELEASES_S3_BUCKET }}
+      PLANE_RELEASES_S3_SK: ${{ secrets.PLANE_RELEASES_S3_SK }}
+      PLANE_RELEASES_S3_URL: ${{ secrets.PLANE_RELEASES_S3_URL }}
       SMOKE_LATEST: "1"
     steps:
       - uses: actions/checkout@v6
