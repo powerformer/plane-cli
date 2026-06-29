@@ -1,14 +1,39 @@
 $ErrorActionPreference = 'Stop'
 
 $command = if ($args.Length -gt 0) { $args[0] } else { 'install' }
-$remaining = if ($args.Length -gt 1) { $args[1..($args.Length - 1)] } else { @() }
+[string[]]$remaining = if ($args.Length -gt 1) { $args[1..($args.Length - 1)] } else { @() }
 
 $channel = if ($env:PLANE_CHANNEL) { $env:PLANE_CHANNEL } else { 'stable' }
 $version = if ($env:PLANE_VERSION) { $env:PLANE_VERSION } else { '' }
 $publicUrl = if ($env:PLANE_RELEASES_PUBLIC_URL) { $env:PLANE_RELEASES_PUBLIC_URL } else { 'https://releases.plane.powerformer.net' }
-$installRoot = if ($env:PLANE_INSTALL_ROOT) { $env:PLANE_INSTALL_ROOT } else { Join-Path $env:LOCALAPPDATA 'plane' }
-$localBinDir = if ($env:PLANE_LOCAL_BIN_DIR) { $env:PLANE_LOCAL_BIN_DIR } else { Join-Path $env:USERPROFILE '.local\bin' }
+$defaultInstallRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'plane' } else { Join-Path $HOME '.local/share/plane' }
+$defaultLocalBinDir = if ($env:USERPROFILE) { Join-Path $env:USERPROFILE '.local\bin' } else { Join-Path $HOME '.local/bin' }
+$installRoot = if ($env:PLANE_INSTALL_ROOT) { $env:PLANE_INSTALL_ROOT } else { $defaultInstallRoot }
+$localBinDir = if ($env:PLANE_LOCAL_BIN_DIR) { $env:PLANE_LOCAL_BIN_DIR } else { $defaultLocalBinDir }
 $retain = if ($env:PLANE_RETAIN) { $env:PLANE_RETAIN } else { '' }
+
+function Show-Help {
+    @'
+plane manager
+
+Usage:
+  manage.ps1 install [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
+  manage.ps1 uninstall [--version vX.Y.Z]
+
+Environment:
+  PLANE_RELEASES_PUBLIC_URL  # default: https://releases.plane.powerformer.net
+  PLANE_CHANNEL
+  PLANE_VERSION
+  PLANE_INSTALL_ROOT
+  PLANE_LOCAL_BIN_DIR
+  PLANE_RETAIN
+'@ | Write-Output
+}
+
+if ($command -match '^(-h|--help|help)$') {
+    Show-Help
+    exit 0
+}
 
 for ($i = 0; $i -lt $remaining.Length; $i++) {
     $arg = $remaining[$i]
@@ -26,21 +51,7 @@ for ($i = 0; $i -lt $remaining.Length; $i++) {
         '^--retain$' { $retain = 'true'; continue }
         '^--retain=(.+)$' { $retain = $Matches[1]; continue }
         '^(-h|--help|help)$' {
-            @'
-plane manager
-
-Usage:
-  manage.ps1 install [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
-  manage.ps1 uninstall [--version vX.Y.Z]
-
-Environment:
-  PLANE_RELEASES_PUBLIC_URL  # default: https://releases.plane.powerformer.net
-  PLANE_CHANNEL
-  PLANE_VERSION
-  PLANE_INSTALL_ROOT
-  PLANE_LOCAL_BIN_DIR
-  PLANE_RETAIN
-'@ | Write-Output
+            Show-Help
             exit 0
         }
         default { throw "unknown argument: $arg" }
