@@ -130,10 +130,6 @@ jobs:
       PLANE_RELEASES_S3_BUCKET: ${{ secrets.PLANE_RELEASES_S3_BUCKET }}
       PLANE_RELEASES_S3_SK: ${{ secrets.PLANE_RELEASES_S3_SK }}
       PLANE_RELEASES_S3_URL: ${{ secrets.PLANE_RELEASES_S3_URL }}
-      PLANE_RELEASE_VERIFY_ATTEMPTS: ${{ vars.PLANE_RELEASE_VERIFY_ATTEMPTS || '36' }}
-      PLANE_RELEASE_VERIFY_CONNECT_TIMEOUT_SECONDS: ${{ vars.PLANE_RELEASE_VERIFY_CONNECT_TIMEOUT_SECONDS || '10' }}
-      PLANE_RELEASE_VERIFY_INTERVAL_SECONDS: ${{ vars.PLANE_RELEASE_VERIFY_INTERVAL_SECONDS || '10' }}
-      PLANE_RELEASE_VERIFY_MAX_TIME_SECONDS: ${{ vars.PLANE_RELEASE_VERIFY_MAX_TIME_SECONDS || '30' }}
       RELEASE_CHANNEL: stable
       RELEASE_ROOT: dist/${{ needs.metadata.outputs.release_version }}
       RELEASE_VERSION: ${{ needs.metadata.outputs.release_version }}
@@ -166,8 +162,6 @@ jobs:
         run: bash .github/scripts/release/r2/publish.sh
 
       - name: Verify R2 publish
-        env:
-          R2_METADATA_URL: ${{ steps.r2.outputs.metadata_url }}
         run: bash .github/scripts/release/r2/verify.sh
 
       - name: Create and push git tag
