@@ -14,11 +14,11 @@ workflows, service orchestration, remote API operations, or project mutations.
 - `.github/workflows/` contains CI and release workflows.
 - `.github/scripts/` contains workflow-only helper scripts. Keep workflow-only
   scripts there.
-- `runseal.toml` and `.runseal/wrappers/` are the repo-local operator
-  entrypoints for support tasks that do not belong in the installable `plane`
-  binary. Current support commands are `runseal :pr` and `runseal :release`.
+- `cli.sh` and `cli.ps1` are the repo-local operator entrypoints for support
+  tasks that do not belong in the installable `plane` binary. Current support
+  commands are `./cli.sh land` and `./cli.sh release`.
 - `scripts/` contains the repo-local uv-managed Python support command tree
-  used by runseal wrappers.
+  used by the repo-local operator wrappers.
 - `.local/` is repo-local private operator state. It must stay gitignored and
   must not become a source of truth for product behavior.
 - `scripts/init.py` is the idempotent post-clone initializer. It quick-fails on
@@ -41,7 +41,7 @@ commands, workflow notes, and FAQ for that subtree.
 ### Project Boundaries
 
 - Keep the CLI capability small until real Plane workflows are designed.
-- Keep support operations in runseal-backed repo commands rather than the
+- Keep support operations in repo-local operator commands rather than the
   product binary.
 - Keep release metadata, artifact packaging, and smoke installation in workflow
   scripts, not in Rust product code.
@@ -56,14 +56,13 @@ cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
 cargo run --locked -p plane-cli -- help
-runseal :pr --help
-runseal :release --channel=beta --dry-run
+./cli.sh land --help
+./cli.sh release --channel=beta --dry-run
 ```
 
-`python3 scripts/init.py` is the default post-clone command. It requires
-`runseal` so repo-local support commands have one entrypoint shape. Use
-`--force` only when intentionally replacing existing non-init hooks; the script
-backs them up first.
+`python3 scripts/init.py` is the default post-clone command. Use `--force` only
+when intentionally replacing existing non-init hooks; the script backs them up
+first.
 
 ## Standard Workflow
 
@@ -173,4 +172,4 @@ root files.
 
 Workflow-only helpers belong under `.github/scripts/`. The repository
 initialization entrypoint is `scripts/init.py`; additional local support
-commands, if added, should use runseal wrappers plus `scripts/cli/`.
+commands, if added, should use `cli.sh` / `cli.ps1` plus `scripts/cli/`.

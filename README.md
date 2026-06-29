@@ -56,14 +56,13 @@ cargo test --locked --workspace
 cargo run --locked -p plane-cli -- help
 ```
 
-Repo-local operator commands use runseal wrappers rather than the installable
-`plane` binary:
+Repo-local operator commands use `cli.sh` / `cli.ps1` wrappers rather than the
+installable `plane` binary:
 
 ```bash
-runseal :pr [options]
-runseal :release --channel=beta [options]
-runseal :release --channel=stable [options]
-runseal @wrappers
+./cli.sh land [options]
+./cli.sh release --channel=beta [options]
+./cli.sh release --channel=stable [options]
 ```
 
 For source-change shape, branch names, commit/PR conventions, and release
