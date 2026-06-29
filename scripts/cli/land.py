@@ -10,7 +10,7 @@ from lib.utils.cli import CliError, run_checked
 
 def usage() -> None:
     print(
-        """Usage: runseal :pr [options]
+        """Usage: ./cli.sh land [options]
 
 Create or update the GitHub PR for the current branch.
 
@@ -97,7 +97,7 @@ def create_pr(branch: str, base: str, title: str | None, body_file: str | None) 
 
 
 def cmd_default(args: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="runseal :pr", add_help=False)
+    parser = argparse.ArgumentParser(prog="./cli.sh land", add_help=False)
     parser.add_argument("--base", default="main")
     parser.add_argument("--title")
     parser.add_argument("--body-file")
@@ -118,7 +118,7 @@ def cmd_default(args: list[str]) -> int:
         print(f"branch: {branch}")
         print(f"base: {parsed.base}")
         print(f"push: {not parsed.no_push}")
-        print("pr: create if missing, otherwise reuse existing")
+        print("land: create PR if missing, otherwise reuse existing")
         print(f"ready: {parsed.ready}")
         print(f"auto_merge: {parsed.auto_merge}")
         print(f"checks: {parsed.checks or parsed.watch_checks}")
@@ -156,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return cmd_default(args)
     except (CliError, RuntimeError, OSError, subprocess.CalledProcessError) as exc:
-        print(f"pr: {exc}", file=sys.stderr)
+        print(f"land: {exc}", file=sys.stderr)
         return 1
 
 

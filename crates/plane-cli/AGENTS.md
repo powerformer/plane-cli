@@ -31,4 +31,4 @@ cargo run --locked -p plane-cli -- --version
 - Keep command output small and stable.
 - Add tests for every accepted command or output shape change.
 - Use `AppState` for process-level context that future commands need.
-- Keep support operations in `scripts/cli/` behind runseal wrappers.
+- Keep support operations in `scripts/cli/` behind `cli.sh` / `cli.ps1`.

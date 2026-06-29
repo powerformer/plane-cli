@@ -21,7 +21,6 @@ REQUIRED_TOOLS = (
     "git",
     "python3",
     "cargo",
-    "runseal",
     "uv",
     "sh",
     "bash",
@@ -32,19 +31,17 @@ REQUIRED_TOOLS = (
 REQUIRED_PATHS = (
     "Cargo.toml",
     "Cargo.lock",
+    "cli.sh",
+    "cli.ps1",
     "manage.sh",
     "manage.ps1",
-    "runseal.toml",
-    ".runseal/lib/python-module",
-    ".runseal/wrappers/pr.sh",
-    ".runseal/wrappers/release.sh",
     ".github/workflows/guard.yml",
     ".github/scripts/release/r2/publish.sh",
     ".github/scripts/release/smoke/smoke.sh",
     ".github/scripts/release/smoke/smoke.ps1",
     "scripts/pyproject.toml",
     "scripts/uv.lock",
-    "scripts/cli/pr.py",
+    "scripts/cli/land.py",
     "scripts/cli/release.py",
     "scripts/init.py",
 )
@@ -65,16 +62,14 @@ echo "==> plane help smoke"
 cargo run --locked -p plane-cli -- help
 
 echo "==> shell syntax"
-sh -n .runseal/lib/python-module
-sh -n .runseal/wrappers/pr.sh
-sh -n .runseal/wrappers/release.sh
+sh -n cli.sh
 sh -n manage.sh
 bash -n .github/scripts/release/r2/publish.sh
 sh -n .github/scripts/release/smoke/smoke.sh
 
 echo "==> python syntax"
 python3 -m py_compile scripts/init.py
-python3 -m py_compile scripts/cli/pr.py
+python3 -m py_compile scripts/cli/land.py
 python3 -m py_compile scripts/cli/release.py
 python3 -m py_compile scripts/lib/utils/cli.py
 
@@ -83,7 +78,7 @@ if command -v pwsh >/dev/null 2>&1; then
   pwsh -NoProfile -NonInteractive -Command \\
     '
 $ErrorActionPreference = "Stop"
-foreach ($path in @("./manage.ps1", "./.github/scripts/release/smoke/smoke.ps1")) {{
+foreach ($path in @("./cli.ps1", "./manage.ps1", "./.github/scripts/release/smoke/smoke.ps1")) {{
   [scriptblock]::Create((Get-Content -Raw $path)) | Out-Null
 }}
 '
