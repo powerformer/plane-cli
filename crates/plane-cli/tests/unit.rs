@@ -8,6 +8,8 @@ mod cli;
 mod config;
 #[path = "../src/output.rs"]
 mod output;
+#[path = "../src/skill.rs"]
+mod skill;
 
 #[path = "unit/cli.rs"]
 mod cli_cases;

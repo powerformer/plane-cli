@@ -151,6 +151,9 @@ jobs:
           path: dist/${{ needs.metadata.outputs.release_version }}
           merge-multiple: true
 
+      - name: Package skill artifact
+        run: python3 .github/scripts/release/assets/package-skill.py "${RELEASE_VERSION}" "${RELEASE_ROOT}"
+
       - name: Create checksums
         run: sh .github/scripts/release/assets/checksums.sh "${RELEASE_VERSION}" "${RELEASE_ROOT}"
 

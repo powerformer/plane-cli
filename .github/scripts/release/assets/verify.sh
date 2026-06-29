@@ -53,7 +53,11 @@ def ensure_zip_contains(name, member):
 ensure_tar_contains("plane-x86_64-unknown-linux-gnu.tar.gz", "plane")
 ensure_tar_contains("plane-aarch64-apple-darwin.tar.gz", "plane")
 ensure_tar_contains("plane-x86_64-apple-darwin.tar.gz", "plane")
+ensure_tar_contains("plane-cli.tar.gz", "plane-cli/SKILL.md")
+ensure_tar_contains("plane-cli.tar.gz", "plane-cli/metadata.json")
 ensure_zip_contains("plane-x86_64-pc-windows-msvc.zip", "plane.exe")
+ensure_zip_contains("plane-cli.zip", "plane-cli/SKILL.md")
+ensure_zip_contains("plane-cli.zip", "plane-cli/metadata.json")
 PY
 }
 
@@ -64,6 +68,8 @@ case "$MODE" in
     require_file plane-aarch64-apple-darwin.tar.gz
     require_file plane-x86_64-apple-darwin.tar.gz
     require_file plane-x86_64-pc-windows-msvc.zip
+    require_file plane-cli.tar.gz
+    require_file plane-cli.zip
     version_line=$(sed -n 's/^VERSION: *//p' "$ARTIFACT_DIR/checksums.txt" | head -n 1)
     [ "$version_line" = "$RELEASE_VERSION" ] || {
       printf 'version mismatch: expected %s got %s\n' "$RELEASE_VERSION" "$version_line" >&2
@@ -73,7 +79,9 @@ case "$MODE" in
       plane-x86_64-unknown-linux-gnu.tar.gz \
       plane-aarch64-apple-darwin.tar.gz \
       plane-x86_64-apple-darwin.tar.gz \
-      plane-x86_64-pc-windows-msvc.zip
+      plane-x86_64-pc-windows-msvc.zip \
+      plane-cli.tar.gz \
+      plane-cli.zip
     do
       require_checksum_entry "$asset" || {
         printf 'missing checksum entry: %s\n' "$asset" >&2

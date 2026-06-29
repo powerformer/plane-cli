@@ -13,11 +13,19 @@ trap 'rm -rf "$tmpdir"' EXIT INT TERM
 export HOME="$tmpdir/home"
 export PLANE_INSTALL_ROOT="$tmpdir/install"
 export PLANE_LOCAL_BIN_DIR="$tmpdir/bin"
-mkdir -p "$HOME" "$PLANE_INSTALL_ROOT" "$PLANE_LOCAL_BIN_DIR"
+export PLANE_HOME="$tmpdir/plane-home"
+skill_path="$tmpdir/agent/skills/plane-cli"
+mkdir -p "$HOME" "$PLANE_INSTALL_ROOT" "$PLANE_LOCAL_BIN_DIR" "$tmpdir/agent/skills"
 
 sh "$ROOT/manage.sh" install --channel "$CHANNEL" --version "$VERSION" --retain=false
 "$PLANE_LOCAL_BIN_DIR/plane" --version
 "$PLANE_LOCAL_BIN_DIR/plane" help
+"$PLANE_LOCAL_BIN_DIR/plane" skill install --path "$skill_path" --channel "$CHANNEL" --version "$VERSION"
+test -f "$skill_path/SKILL.md"
+sh "$ROOT/manage.sh" upgrade --channel "$CHANNEL" --version "$VERSION" --retain=false
+test -f "$skill_path/SKILL.md"
+"$PLANE_LOCAL_BIN_DIR/plane" skill uninstall
+test ! -e "$skill_path"
 sh "$ROOT/manage.sh" uninstall --version "$VERSION"
 [ ! -e "$PLANE_INSTALL_ROOT/$VERSION" ] || { printf '%s\n' "version uninstall left $PLANE_INSTALL_ROOT/$VERSION" >&2; exit 1; }
 

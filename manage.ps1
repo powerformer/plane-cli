@@ -18,6 +18,7 @@ plane manager
 
 Usage:
   manage.ps1 install [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
+  manage.ps1 upgrade [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
   manage.ps1 uninstall [--version vX.Y.Z]
 
 Environment:
@@ -111,6 +112,7 @@ function Install-Plane {
         }
     }
     $resolvedVersion = Normalize-Version $resolvedVersion
+    $script:version = $resolvedVersion
     $oldVersions = Installed-Versions $resolvedVersion
     $retainOld = Should-Retain $oldVersions
 
@@ -140,6 +142,11 @@ function Install-Plane {
     finally {
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $tmpdir
     }
+}
+
+function Upgrade-Plane {
+    Install-Plane
+    & (Join-Path $localBinDir 'plane.exe') skill upgrade --channel $channel --version $script:version --release-url $publicUrl
 }
 
 function Remove-EmptyDir {
@@ -189,6 +196,7 @@ function Uninstall-Plane {
 
 switch ($command) {
     'install' { Install-Plane }
+    'upgrade' { Upgrade-Plane }
     'uninstall' { Uninstall-Plane }
     default { throw "unknown command: $command" }
 }

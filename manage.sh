@@ -17,6 +17,7 @@ plane manager
 
 Usage:
   manage.sh install [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
+  manage.sh upgrade [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
   manage.sh uninstall [--version vX.Y.Z]
 
 Environment:
@@ -238,8 +239,17 @@ uninstall_plane() {
   printf 'removed plane from %s and %s\n' "$INSTALL_ROOT" "$bin_path"
 }
 
+upgrade_plane() {
+  install_plane
+  "$LOCAL_BIN_DIR/plane" skill upgrade \
+    --channel "$CHANNEL" \
+    --version "$VERSION" \
+    --release-url "$PUBLIC_URL"
+}
+
 case "$COMMAND" in
   install) install_plane ;;
+  upgrade) upgrade_plane ;;
   uninstall) uninstall_plane ;;
   *)
     echo "unknown command: $COMMAND" >&2
