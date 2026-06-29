@@ -41,7 +41,6 @@ REQUIRED_PATHS = (
     ".github/scripts/release/smoke/smoke.ps1",
     "scripts/pyproject.toml",
     "scripts/uv.lock",
-    "scripts/cli/land.py",
     "scripts/cli/release.py",
     "scripts/init.py",
 )
@@ -69,7 +68,6 @@ sh -n .github/scripts/release/smoke/smoke.sh
 
 echo "==> python syntax"
 python3 -m py_compile scripts/init.py
-python3 -m py_compile scripts/cli/land.py
 python3 -m py_compile scripts/cli/release.py
 python3 -m py_compile scripts/lib/utils/cli.py
 

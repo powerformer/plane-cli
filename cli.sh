@@ -10,11 +10,9 @@ usage() {
 plane repo operator
 
 Usage:
-  ./cli.sh land [options]
   ./cli.sh release --channel=stable|beta [options]
 
 Commands:
-  land       Create or update the GitHub PR for the current branch.
   release    Trigger a release workflow.
 EOF
 }
@@ -24,7 +22,7 @@ case "$COMMAND" in
     usage
     exit 0
     ;;
-  land|release)
+  release)
     ;;
   *)
     echo "unknown command: $COMMAND" >&2

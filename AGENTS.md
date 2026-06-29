@@ -16,7 +16,7 @@ workflows, service orchestration, remote API operations, or project mutations.
   scripts there.
 - `cli.sh` and `cli.ps1` are the repo-local operator entrypoints for support
   tasks that do not belong in the installable `plane` binary. Current support
-  commands are `./cli.sh land` and `./cli.sh release`.
+  command is `./cli.sh release`.
 - `scripts/` contains the repo-local uv-managed Python support command tree
   used by the repo-local operator wrappers.
 - `.local/` is repo-local private operator state. It must stay gitignored and
@@ -56,7 +56,6 @@ cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
 cargo run --locked -p plane-cli -- help
-./cli.sh land --help
 ./cli.sh release --channel=beta --dry-run
 ```
 
@@ -149,11 +148,9 @@ downside that reviewers should hold in mind.
 `guard` workflow. Required approvals can stay `0`; the guard matrix is the
 merge gate.
 
-After opening a non-draft PR, default to enabling repository auto-merge:
-
-```bash
-gh pr merge <num> --auto --squash --delete-branch
-```
+Create and merge PRs through GitHub directly so organization review rules stay
+visible. Do not depend on a repo-local merge helper to bypass or obscure the
+approval path.
 
 ## FAQ
 

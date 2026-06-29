@@ -60,10 +60,10 @@ Repo-local operator commands use `cli.sh` / `cli.ps1` wrappers rather than the
 installable `plane` binary:
 
 ```bash
-./cli.sh land [options]
 ./cli.sh release --channel=beta [options]
 ./cli.sh release --channel=stable [options]
 ```
 
-For source-change shape, branch names, commit/PR conventions, and release
+Create and merge PRs through GitHub directly so organization review rules stay
+visible. For source-change shape, branch names, commit/PR conventions, and release
 workflow notes, see [AGENTS.md](./AGENTS.md).
