@@ -8,8 +8,75 @@ for name in PLANE_RELEASES_PUBLIC_URL RELEASE_CHANNEL RELEASE_VERSION R2_METADAT
   fi
 done
 
+VERIFY_ATTEMPTS=${PLANE_RELEASE_VERIFY_ATTEMPTS:-12}
+VERIFY_INTERVAL_SECONDS=${PLANE_RELEASE_VERIFY_INTERVAL_SECONDS:-10}
+VERIFY_CONNECT_TIMEOUT_SECONDS=${PLANE_RELEASE_VERIFY_CONNECT_TIMEOUT_SECONDS:-10}
+VERIFY_MAX_TIME_SECONDS=${PLANE_RELEASE_VERIFY_MAX_TIME_SECONDS:-30}
+
+require_positive_int() {
+  local name="$1"
+  local value="$2"
+  case "$value" in
+    ''|*[!0-9]*)
+      echo "$name must be a positive integer, got: $value" >&2
+      exit 1
+      ;;
+  esac
+  if [ "$value" -lt 1 ]; then
+    echo "$name must be >= 1, got: $value" >&2
+    exit 1
+  fi
+}
+
+require_positive_int PLANE_RELEASE_VERIFY_ATTEMPTS "$VERIFY_ATTEMPTS"
+require_positive_int PLANE_RELEASE_VERIFY_INTERVAL_SECONDS "$VERIFY_INTERVAL_SECONDS"
+require_positive_int PLANE_RELEASE_VERIFY_CONNECT_TIMEOUT_SECONDS "$VERIFY_CONNECT_TIMEOUT_SECONDS"
+require_positive_int PLANE_RELEASE_VERIFY_MAX_TIME_SECONDS "$VERIFY_MAX_TIME_SECONDS"
+
+curl_with_retry() {
+  local mode="$1"
+  local url="$2"
+  local output="${3:-}"
+  local attempt=1
+  local status=0
+
+  while [ "$attempt" -le "$VERIFY_ATTEMPTS" ]; do
+    echo "verify public URL attempt $attempt/$VERIFY_ATTEMPTS: $url"
+    case "$mode" in
+      get)
+        curl -fsSL \
+          --connect-timeout "$VERIFY_CONNECT_TIMEOUT_SECONDS" \
+          --max-time "$VERIFY_MAX_TIME_SECONDS" \
+          "$url" \
+          -o "$output" && return 0
+        status=$?
+        ;;
+      head)
+        curl -fsSI \
+          --connect-timeout "$VERIFY_CONNECT_TIMEOUT_SECONDS" \
+          --max-time "$VERIFY_MAX_TIME_SECONDS" \
+          "$url" >/dev/null && return 0
+        status=$?
+        ;;
+      *)
+        echo "unknown curl retry mode: $mode" >&2
+        exit 1
+        ;;
+    esac
+
+    if [ "$attempt" -lt "$VERIFY_ATTEMPTS" ]; then
+      echo "public URL not ready yet (curl exit $status); retrying in ${VERIFY_INTERVAL_SECONDS}s" >&2
+      sleep "$VERIFY_INTERVAL_SECONDS"
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  echo "public URL verification failed after $VERIFY_ATTEMPTS attempts: $url" >&2
+  return "$status"
+}
+
 metadata="$RUNNER_TEMP/plane-release-metadata.json"
-curl -fsSL "$R2_METADATA_URL?run=${GITHUB_RUN_ID:-local}" -o "$metadata"
+curl_with_retry get "$R2_METADATA_URL?run=${GITHUB_RUN_ID:-local}" "$metadata"
 
 DOWNLOADED_METADATA="$metadata" \
 EXPECTED_CHANNEL="$RELEASE_CHANNEL" \
@@ -59,5 +126,5 @@ print(metadata["manage"]["unix"])
 print(metadata["manage"]["windows"])
 PY
 ); do
-  curl -fsSI "$url" >/dev/null
+  curl_with_retry head "$url"
 done
