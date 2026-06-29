@@ -40,7 +40,7 @@ struct SkillCommand {
 enum SkillSubcommand {
     #[command(
         about = "Install the plane-cli skill into detected agent skill directories or an explicit final path.",
-        long_about = "Install the plane-cli skill.\n\nBy default, Plane detects common agent skill directories for Claude Code, Codex, and OpenCode, and installs only into existing parent directories. Pass --path to install into an explicit final skill directory such as /path/to/skills/plane-cli. Plane will not overwrite unmanaged paths."
+        long_about = "Install the plane-cli skill.\n\nBy default, Plane detects common agent homes for Claude Code, Codex, and OpenCode, creates their skills directories when needed, and installs plane-cli there. Pass --path to install into an explicit final skill directory such as /path/to/skills/plane-cli. Plane will not overwrite unmanaged paths."
     )]
     Install(SkillInstallCommand),
     #[command(

@@ -48,6 +48,14 @@ struct InstallTarget {
 }
 
 #[derive(Debug, Clone)]
+struct DefaultAgentCandidate {
+    agent: &'static str,
+    presence_dir: PathBuf,
+    skills_dir: PathBuf,
+    allow_missing_presence: bool,
+}
+
+#[derive(Debug, Clone)]
 struct ResolvedSkillRelease {
     release_url: String,
     channel: String,
@@ -297,30 +305,108 @@ fn install_targets(path: Option<&Path>, dry_run: bool) -> Result<Vec<InstallTarg
     let Some(home) = config::home_dir() else {
         return Ok(Vec::new());
     };
-    let candidates = [
-        ("claude-code", home.join(".claude").join("skills")),
-        ("codex", home.join(".agents").join("skills")),
-        (
-            "opencode",
-            home.join(".config").join("opencode").join("skills"),
-        ),
-    ];
 
     let mut targets = Vec::new();
-    for (agent, skills_dir) in candidates {
-        if skills_dir.is_dir() {
-            let skills_dir = skills_dir.canonicalize().map_err(|error| {
-                format!("failed to canonicalize {}: {error}", skills_dir.display())
-            })?;
-            targets.push(InstallTarget {
-                agent: agent.to_string(),
-                path: skills_dir.join(SKILL_NAME),
-            });
-        } else {
-            debug!(agent, path = %skills_dir.display(), "agent skill directory not found");
+    for candidate in default_agent_candidates(&home) {
+        match default_target_for_candidate(&candidate, dry_run)? {
+            Some(target) => {
+                if !targets
+                    .iter()
+                    .any(|existing: &InstallTarget| paths_equal(&existing.path, &target.path))
+                {
+                    targets.push(target);
+                }
+            }
+            None => {
+                debug!(
+                    agent = candidate.agent,
+                    path = %candidate.presence_dir.display(),
+                    "agent home directory not found"
+                );
+            }
         }
     }
     Ok(targets)
+}
+
+fn default_agent_candidates(home: &Path) -> Vec<DefaultAgentCandidate> {
+    default_agent_candidates_for_home(home, std::env::var_os("CODEX_HOME").map(PathBuf::from))
+}
+
+fn default_agent_candidates_for_home(
+    home: &Path,
+    codex_home_override: Option<PathBuf>,
+) -> Vec<DefaultAgentCandidate> {
+    let codex_home = codex_home_override
+        .clone()
+        .unwrap_or_else(|| home.join(".codex"));
+    vec![
+        DefaultAgentCandidate {
+            agent: "claude-code",
+            presence_dir: home.join(".claude"),
+            skills_dir: home.join(".claude").join("skills"),
+            allow_missing_presence: false,
+        },
+        DefaultAgentCandidate {
+            agent: "codex",
+            presence_dir: codex_home.clone(),
+            skills_dir: codex_home.join("skills"),
+            allow_missing_presence: codex_home_override.is_some(),
+        },
+        DefaultAgentCandidate {
+            agent: "codex",
+            presence_dir: home.join(".agents").join("skills"),
+            skills_dir: home.join(".agents").join("skills"),
+            allow_missing_presence: false,
+        },
+        DefaultAgentCandidate {
+            agent: "opencode",
+            presence_dir: home.join(".config").join("opencode"),
+            skills_dir: home.join(".config").join("opencode").join("skills"),
+            allow_missing_presence: false,
+        },
+    ]
+}
+
+fn default_target_for_candidate(
+    candidate: &DefaultAgentCandidate,
+    dry_run: bool,
+) -> Result<Option<InstallTarget>, String> {
+    if !candidate.allow_missing_presence
+        && !candidate.presence_dir.is_dir()
+        && !candidate.skills_dir.is_dir()
+    {
+        return Ok(None);
+    }
+
+    let skills_dir = if candidate.skills_dir.is_dir() {
+        candidate.skills_dir.canonicalize().map_err(|error| {
+            format!(
+                "failed to canonicalize {}: {error}",
+                candidate.skills_dir.display()
+            )
+        })?
+    } else if dry_run {
+        absolute_path(&candidate.skills_dir)?
+    } else {
+        fs::create_dir_all(&candidate.skills_dir).map_err(|error| {
+            format!(
+                "failed to create {}: {error}",
+                candidate.skills_dir.display()
+            )
+        })?;
+        candidate.skills_dir.canonicalize().map_err(|error| {
+            format!(
+                "failed to canonicalize {}: {error}",
+                candidate.skills_dir.display()
+            )
+        })?
+    };
+
+    Ok(Some(InstallTarget {
+        agent: candidate.agent.to_string(),
+        path: skills_dir.join(SKILL_NAME),
+    }))
 }
 
 fn final_install_path(path: &Path, dry_run: bool) -> Result<PathBuf, String> {
@@ -329,13 +415,7 @@ fn final_install_path(path: &Path, dry_run: bool) -> Result<PathBuf, String> {
             .canonicalize()
             .map_err(|error| format!("failed to canonicalize {}: {error}", path.display()));
     }
-    let absolute = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::env::current_dir()
-            .map_err(|error| format!("failed to read current directory: {error}"))?
-            .join(path)
-    };
+    let absolute = absolute_path(path)?;
     let parent = absolute
         .parent()
         .ok_or_else(|| format!("install path has no parent: {}", absolute.display()))?;
@@ -356,6 +436,15 @@ fn final_install_path(path: &Path, dry_run: bool) -> Result<PathBuf, String> {
         return Ok(parent.join(file_name));
     }
     Ok(absolute)
+}
+
+fn absolute_path(path: &Path) -> Result<PathBuf, String> {
+    if path.is_absolute() {
+        return Ok(path.to_path_buf());
+    }
+    std::env::current_dir()
+        .map_err(|error| format!("failed to read current directory: {error}"))
+        .map(|current_dir| current_dir.join(path))
 }
 
 fn resolve_release(
@@ -732,5 +821,74 @@ impl StateLock {
 impl Drop for StateLock {
     fn drop(&mut self) {
         let _ = fs::remove_file(&self.path);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn default_candidates_use_real_codex_home() {
+        let home = PathBuf::from("/home/example");
+        let candidates = default_agent_candidates_for_home(&home, None);
+
+        assert!(candidates
+            .iter()
+            .any(|item| item.agent == "codex" && item.skills_dir == home.join(".codex/skills")));
+        assert!(candidates.iter().any(|item| {
+            item.agent == "claude-code" && item.skills_dir == home.join(".claude/skills")
+        }));
+    }
+
+    #[test]
+    fn default_candidates_honor_codex_home_override() {
+        let home = PathBuf::from("/home/example");
+        let codex_home = PathBuf::from("/tmp/custom-codex");
+        let candidates = default_agent_candidates_for_home(&home, Some(codex_home.clone()));
+
+        assert!(candidates.iter().any(|item| {
+            item.agent == "codex"
+                && item.skills_dir == codex_home.join("skills")
+                && item.allow_missing_presence
+        }));
+    }
+
+    #[test]
+    fn default_target_creates_missing_skills_dir_when_agent_home_exists() {
+        let root = unique_test_dir();
+        let agent_home = root.join(".claude");
+        let skills_dir = agent_home.join("skills");
+        fs::create_dir_all(&agent_home).expect("create agent home");
+        let candidate = DefaultAgentCandidate {
+            agent: "claude-code",
+            presence_dir: agent_home,
+            skills_dir: skills_dir.clone(),
+            allow_missing_presence: false,
+        };
+
+        let target = default_target_for_candidate(&candidate, false)
+            .expect("candidate target")
+            .expect("target");
+
+        assert!(skills_dir.is_dir());
+        assert_eq!(target.agent, "claude-code");
+        assert_eq!(
+            target.path,
+            skills_dir
+                .canonicalize()
+                .expect("canonical skills dir")
+                .join(SKILL_NAME)
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    fn unique_test_dir() -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        std::env::temp_dir().join(format!("plane-cli-test-{}-{nanos}", std::process::id()))
     }
 }
