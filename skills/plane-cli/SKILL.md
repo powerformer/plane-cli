@@ -1,3 +1,10 @@
+---
+name: plane-cli
+description: Use when installing, upgrading, or managing Plane CLI agent skills, or when working in a repository that expects the Plane CLI.
+metadata:
+  short-description: Manage Plane CLI and Plane agent skills
+---
+
 # plane-cli
 
 Use `plane` when the user asks to install, upgrade, or manage Plane CLI agent skills, or when they are working in a repository that expects the Plane CLI.
