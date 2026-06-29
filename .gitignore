@@ -1,0 +1,8 @@
+.task/
+target/
+dist/
+.local/
+.tmp/
+scripts/.venv/
+__pycache__/
+*.pyc

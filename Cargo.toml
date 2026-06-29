@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "crates/plane-cli",
+]
+resolver = "2"
