@@ -1,9 +1,10 @@
 use crate::{
-    app::AppState,
+    app::{build_version, AppState},
+    config::ConfigOverrides,
     output::CommandResult,
     skill::{self, SkillInstallOptions, SkillUninstallOptions, SkillUpgradeOptions},
 };
-use clap::{Args, CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{ArgMatches, Args, CommandFactory, FromArgMatches, Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -15,6 +16,38 @@ use std::path::PathBuf;
     arg_required_else_help = false
 )]
 pub struct PlaneCli {
+    #[arg(
+        long,
+        global = true,
+        value_name = "FILE",
+        help = "Path to plane.toml. Defaults to PLANE_CONFIG or {PLANE_HOME:-~/.plane}/plane.toml."
+    )]
+    pub config: Option<PathBuf>,
+
+    #[arg(
+        long,
+        global = true,
+        value_name = "DIR",
+        help = "Plane home directory. Overrides config home, PLANE_HOME, and the ~/.plane default."
+    )]
+    pub home: Option<PathBuf>,
+
+    #[arg(
+        long,
+        global = true,
+        value_name = "DIR",
+        help = "Directory for Plane managed state. Overrides config state_dir and PLANE_STATE_DIR."
+    )]
+    pub state_dir: Option<PathBuf>,
+
+    #[arg(
+        long,
+        global = true,
+        value_name = "FILE",
+        help = "Path to managed skill state. Overrides config skills_state_path and PLANE_SKILLS_STATE_PATH."
+    )]
+    pub skills_state_path: Option<PathBuf>,
+
     #[arg(long, global = true, help = "Show detailed diagnostic logs on stderr.")]
     pub verbose: bool,
 
@@ -45,12 +78,12 @@ enum SkillSubcommand {
     Install(SkillInstallCommand),
     #[command(
         about = "Upgrade every managed plane-cli skill installation to the selected release.",
-        long_about = "Upgrade managed plane-cli skill installations.\n\nUpgrade reads the managed installation registry from $PLANE_HOME/state/skills.json and only touches those paths. Missing managed paths are recreated; existing paths must still contain Plane-managed metadata."
+        long_about = "Upgrade managed plane-cli skill installations.\n\nUpgrade reads the managed installation registry from the resolved Plane state path, defaulting to ~/.plane/state/skills.json. It only touches those paths. Missing managed paths are recreated; existing paths must still contain Plane-managed metadata."
     )]
     Upgrade(SkillUpgradeCommand),
     #[command(
         about = "Uninstall every managed plane-cli skill installation.",
-        long_about = "Uninstall managed plane-cli skill installations.\n\nUninstall only removes paths recorded in $PLANE_HOME/state/skills.json, and each target must still contain Plane-managed metadata.json before it is deleted."
+        long_about = "Uninstall managed plane-cli skill installations.\n\nUninstall only removes paths recorded in the resolved Plane state path, defaulting to ~/.plane/state/skills.json, and each target must still contain Plane-managed metadata.json before it is deleted."
     )]
     Uninstall(SkillUninstallCommand),
     #[command(about = "List managed plane-cli skill installations.")]
@@ -84,7 +117,7 @@ struct SkillInstallCommand {
     #[arg(
         long,
         value_name = "URL",
-        help = "Release base URL. Defaults to PLANE_RELEASES_PUBLIC_URL or https://releases.plane.powerformer.net."
+        help = "Release base URL. Overrides config releases_public_url, PLANE_RELEASES_PUBLIC_URL, and the public default."
     )]
     release_url: Option<String>,
 
@@ -111,7 +144,7 @@ struct SkillUpgradeCommand {
     #[arg(
         long,
         value_name = "URL",
-        help = "Release base URL. Defaults to PLANE_RELEASES_PUBLIC_URL or https://releases.plane.powerformer.net."
+        help = "Release base URL. Overrides config releases_public_url, PLANE_RELEASES_PUBLIC_URL, and the public default."
     )]
     release_url: Option<String>,
 
@@ -125,22 +158,25 @@ struct SkillUninstallCommand {
     dry_run: bool,
 }
 
+#[allow(dead_code)]
 pub fn execute(state: &AppState, args: &[String]) -> CommandResult {
-    let argv = std::iter::once("plane".to_string())
-        .chain(args.iter().cloned())
-        .collect::<Vec<_>>();
-    let command = PlaneCli::command().version(state.version);
-    let matches = match command.clone().try_get_matches_from(argv) {
+    let matches = match parse_matches(state.version, args) {
         Ok(matches) => matches,
-        Err(error) => {
-            let status = if error.use_stderr() { 2 } else { 0 };
-            let rendered = error.render().to_string();
-            return if status == 0 {
-                CommandResult::ok(rendered)
-            } else {
-                CommandResult::err(status, rendered)
-            };
-        }
+        Err(result) => return result,
+    };
+    let parsed = match PlaneCli::from_arg_matches(&matches) {
+        Ok(parsed) => parsed,
+        Err(error) => return CommandResult::err(2, error.render().to_string()),
+    };
+
+    dispatch(state, parsed)
+}
+
+pub fn execute_from_env(args: &[String]) -> CommandResult {
+    let version = build_version();
+    let matches = match parse_matches(version, args) {
+        Ok(matches) => matches,
+        Err(result) => return result,
     };
     let parsed = match PlaneCli::from_arg_matches(&matches) {
         Ok(parsed) => parsed,
@@ -148,9 +184,63 @@ pub fn execute(state: &AppState, args: &[String]) -> CommandResult {
     };
 
     match parsed.command {
+        None => CommandResult::ok(help_text(version)),
+        Some(PlaneCommand::Version) => CommandResult::ok(format!("plane {version}\n")),
+        Some(command @ PlaneCommand::Skill(_)) => {
+            let overrides = config_overrides_from_matches(&matches);
+            let state = match AppState::from_env(overrides) {
+                Ok(state) => state,
+                Err(error) => return CommandResult::err(1, format!("plane: {error}\n")),
+            };
+            dispatch(
+                &state,
+                PlaneCli {
+                    command: Some(command),
+                    config: None,
+                    home: None,
+                    state_dir: None,
+                    skills_state_path: None,
+                    verbose: parsed.verbose,
+                },
+            )
+        }
+    }
+}
+
+fn parse_matches(version: &'static str, args: &[String]) -> Result<ArgMatches, CommandResult> {
+    let argv = std::iter::once("plane".to_string())
+        .chain(args.iter().cloned())
+        .collect::<Vec<_>>();
+    let command = PlaneCli::command().version(version);
+    let matches = match command.clone().try_get_matches_from(argv) {
+        Ok(matches) => matches,
+        Err(error) => {
+            let status = if error.use_stderr() { 2 } else { 0 };
+            let rendered = error.render().to_string();
+            return if status == 0 {
+                Err(CommandResult::ok(rendered))
+            } else {
+                Err(CommandResult::err(status, rendered))
+            };
+        }
+    };
+    Ok(matches)
+}
+
+fn dispatch(state: &AppState, parsed: PlaneCli) -> CommandResult {
+    match parsed.command {
         None => CommandResult::ok(help_text(state.version)),
         Some(PlaneCommand::Version) => CommandResult::ok(format!("plane {}\n", state.version)),
         Some(PlaneCommand::Skill(command)) => execute_skill(state, command),
+    }
+}
+
+fn config_overrides_from_matches(matches: &ArgMatches) -> ConfigOverrides {
+    ConfigOverrides {
+        config_path: matches.get_one::<PathBuf>("config").cloned(),
+        plane_home: matches.get_one::<PathBuf>("home").cloned(),
+        state_dir: matches.get_one::<PathBuf>("state_dir").cloned(),
+        skills_state_path: matches.get_one::<PathBuf>("skills_state_path").cloned(),
     }
 }
 

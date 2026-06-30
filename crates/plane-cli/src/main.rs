@@ -6,9 +6,8 @@ mod skill;
 
 fn main() {
     init_tracing();
-    let state = app::AppState::from_env();
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    let result = cli::execute(&state, &args);
+    let result = cli::execute_from_env(&args);
     result.emit();
     std::process::exit(result.status);
 }

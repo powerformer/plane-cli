@@ -23,7 +23,7 @@ The CLI is the command truth source. Prefer running `plane --help`, `plane skill
 
 ## Managed State
 
-Plane only manages skill paths recorded in `$PLANE_HOME/state/skills.json`.
+Plane only manages skill paths recorded in the resolved Plane state path, which defaults to `~/.plane/state/skills.json`.
 Each installed skill directory also contains `metadata.json`.
 
 Do not delete or overwrite user-created skill directories unless they are recorded as Plane-managed paths and contain Plane-managed metadata.

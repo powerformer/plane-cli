@@ -58,9 +58,11 @@ plane skill upgrade --channel beta
 plane skill uninstall
 ```
 
-`plane skill install` writes managed state to `$PLANE_HOME/state/skills.json`.
-`plane skill uninstall` only removes paths recorded there and confirmed by the
-installed skill's `metadata.json`.
+`plane` resolves configuration at startup. The config path is `--config`, then
+`PLANE_CONFIG`, then `{PLANE_HOME:-~/.plane}/plane.toml`. Runtime paths use
+`arg > config file > env > default`; managed skill state defaults to
+`~/.plane/state/skills.json`. `plane skill uninstall` only removes paths recorded
+there and confirmed by the installed skill's `metadata.json`.
 
 ## Development
 
