@@ -662,7 +662,147 @@ struct PageUpdateArgs {
 #[derive(Debug, Args)]
 struct ApiCommentCommand {
     #[command(subcommand)]
-    command: WiSubCommand,
+    command: CommentSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum CommentSubcommand {
+    #[command(about = "List comments on a work item.")]
+    List(CommentListArgs),
+    #[command(about = "Get a comment by id.")]
+    Get(CommentGetArgs),
+    #[command(about = "Comment on a work item from Markdown or HTML.")]
+    Create(CommentCreateArgs),
+    #[command(about = "Update a comment by id from Markdown or HTML.")]
+    Update(CommentUpdateArgs),
+    #[command(about = "Delete a comment by id.")]
+    Delete(CommentDeleteArgs),
+}
+
+/// Body-source flags shared by `comment create` and `comment update`.
+#[derive(Debug, Args)]
+struct CommentBodyArgs {
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Read the comment body from a file. Markdown by default; .html files (or --format html) are sent verbatim."
+    )]
+    from_file: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "TEXT",
+        conflicts_with = "from_file",
+        help = "Inline comment body. Markdown by default; override with --format."
+    )]
+    body: Option<String>,
+    #[arg(
+        long,
+        value_parser = ["md", "markdown", "html"],
+        help = "Body format. Defaults to the --from-file extension, otherwise markdown."
+    )]
+    format: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct CommentListArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item UUID or identifier (e.g. OPEND-7)."
+    )]
+    work_item: String,
+    #[arg(long, help = "Follow cursor pages and list every result.")]
+    all: bool,
+    #[arg(long, value_name = "CSV", help = "Response fields to include.")]
+    fields: Option<String>,
+    #[arg(long, value_name = "CSV", help = "Relations to expand.")]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct CommentGetArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item UUID or identifier (e.g. OPEND-7)."
+    )]
+    work_item: String,
+    #[arg(value_name = "COMMENT_ID", help = "Comment id (UUID).")]
+    id: String,
+    #[arg(long, value_name = "CSV", help = "Response fields to include.")]
+    fields: Option<String>,
+    #[arg(long, value_name = "CSV", help = "Relations to expand.")]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct CommentCreateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item UUID or identifier (e.g. OPEND-7)."
+    )]
+    work_item: String,
+    #[command(flatten)]
+    body: CommentBodyArgs,
+    #[arg(
+        long,
+        value_name = "JSON",
+        help = "Extra fields as a JSON object, merged under the comment body."
+    )]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct CommentUpdateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item UUID or identifier (e.g. OPEND-7)."
+    )]
+    work_item: String,
+    #[arg(value_name = "COMMENT_ID", help = "Comment id (UUID).")]
+    id: String,
+    #[command(flatten)]
+    body: CommentBodyArgs,
+    #[arg(long, value_name = "JSON", help = "Fields to change as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct CommentDeleteArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item UUID or identifier (e.g. OPEND-7)."
+    )]
+    work_item: String,
+    #[arg(value_name = "COMMENT_ID", help = "Comment id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
 }
 
 #[derive(Debug, Args)]
@@ -1208,7 +1348,7 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
         ApiSubcommand::Estimate(command) => execute_crud(state, "estimates", command.command),
         ApiSubcommand::Intake(command) => execute_crud(state, "intake-issues", command.command),
         ApiSubcommand::Page(command) => execute_page(state, command.command),
-        ApiSubcommand::Comment(command) => execute_wi_sub(state, "comments", command.command),
+        ApiSubcommand::Comment(command) => execute_comment(state, command.command),
         ApiSubcommand::Link(command) => execute_wi_sub(state, "links", command.command),
         ApiSubcommand::Relation(command) => execute_wi_sub(state, "relations", command.command),
         ApiSubcommand::Activity(command) => execute_activity(state, command.command),
@@ -1424,6 +1564,73 @@ fn execute_wi_sub(
             let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
             api::generic::delete(state, &collection, &a.id, a.dry_run)
         }
+    }
+}
+
+fn execute_comment(state: &AppState, command: CommentSubcommand) -> Result<String, String> {
+    match command {
+        CommentSubcommand::List(a) => api::comment::list(
+            state,
+            api::comment::ListOptions {
+                project: &a.project,
+                work_item: &a.work_item,
+                all: a.all,
+                fields: a.fields.clone(),
+                expand: a.expand.clone(),
+                json: a.json,
+            },
+        ),
+        CommentSubcommand::Get(a) => api::comment::get(
+            state,
+            api::comment::GetOptions {
+                project: &a.project,
+                work_item: &a.work_item,
+                id: &a.id,
+                fields: a.fields.clone(),
+                expand: a.expand.clone(),
+                json: a.json,
+            },
+        ),
+        CommentSubcommand::Create(a) => api::comment::create(
+            state,
+            api::comment::CreateOptions {
+                project: &a.project,
+                work_item: &a.work_item,
+                body: api::page::BodyArgs {
+                    from_file: a.body.from_file.as_deref(),
+                    body: a.body.body.as_deref(),
+                    format: a.body.format.as_deref(),
+                },
+                data: a.data.clone(),
+                dry_run: a.dry_run,
+                json: a.json,
+            },
+        ),
+        CommentSubcommand::Update(a) => api::comment::update(
+            state,
+            api::comment::UpdateOptions {
+                project: &a.project,
+                work_item: &a.work_item,
+                id: &a.id,
+                body: api::page::BodyArgs {
+                    from_file: a.body.from_file.as_deref(),
+                    body: a.body.body.as_deref(),
+                    format: a.body.format.as_deref(),
+                },
+                data: a.data.clone(),
+                dry_run: a.dry_run,
+                json: a.json,
+            },
+        ),
+        CommentSubcommand::Delete(a) => api::comment::delete(
+            state,
+            api::comment::DeleteOptions {
+                project: &a.project,
+                work_item: &a.work_item,
+                id: &a.id,
+                dry_run: a.dry_run,
+            },
+        ),
     }
 }
 

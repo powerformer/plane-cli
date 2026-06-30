@@ -227,3 +227,74 @@ fn api_page_create_rejects_unknown_access() {
     assert_eq!(result.status, 2);
     assert!(result.stderr.contains("--access"));
 }
+
+#[test]
+fn api_comment_help_lists_verbs() {
+    let result = execute(&state(), &args(&["api", "comment", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("list"));
+    assert!(result.stdout.contains("create"));
+    assert!(result.stdout.contains("delete"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn api_comment_create_help_explains_body_and_identifier() {
+    let result = execute(&state(), &args(&["api", "comment", "create", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("--work-item"));
+    assert!(result.stdout.contains("--from-file"));
+    assert!(result.stdout.contains("OPEND-7")); // identifier example
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn api_comment_create_dry_run_converts_markdown() {
+    // A UUID work item needs no lookup, so dry-run stays fully offline.
+    let result = execute(
+        &state_with_workspace("acme"),
+        &args(&[
+            "api",
+            "comment",
+            "create",
+            "--project",
+            "p1",
+            "--work-item",
+            "11111111-1111-1111-1111-111111111111",
+            "--body",
+            "looks **good**",
+            "--dry-run",
+        ]),
+    );
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("DRY RUN POST"));
+    assert!(result
+        .stdout
+        .contains("work-items/11111111-1111-1111-1111-111111111111/comments/"));
+    assert!(result.stdout.contains("comment_html"));
+    assert!(result.stdout.contains("<strong>good</strong>"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn api_comment_create_requires_a_body() {
+    let result = execute(
+        &state_with_workspace("acme"),
+        &args(&[
+            "api",
+            "comment",
+            "create",
+            "--project",
+            "p1",
+            "--work-item",
+            "11111111-1111-1111-1111-111111111111",
+            "--dry-run",
+        ]),
+    );
+
+    assert_eq!(result.status, 1);
+    assert!(result.stderr.contains("comment body is required"));
+}

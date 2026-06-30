@@ -81,8 +81,8 @@ pub fn markdown_to_html(markdown: &str) -> String {
 
 /// Resolve the body flags into HTML, or `None` when no body was supplied.
 /// Markdown is the default; raw HTML is used for `.html`/`.htm` files or
-/// `--format html`.
-fn resolve_html(args: &BodyArgs) -> Result<Option<String>, String> {
+/// `--format html`. Shared with other authored resources (e.g. comments).
+pub(crate) fn resolve_html(args: &BodyArgs) -> Result<Option<String>, String> {
     let (raw, default_format) = match (args.from_file, args.body) {
         (Some(path), _) => {
             let content = std::fs::read_to_string(path)

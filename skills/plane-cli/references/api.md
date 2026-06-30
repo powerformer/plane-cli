@@ -40,7 +40,6 @@ For `work-item` and the project resources, pass non-typed fields through
 - Label (`label create --data`): `color` (hex).
 - Project member (`member create --data`): `member` (workspace-member user id),
   `role` (`20` Admin | `15` Member | `5` Guest).
-- Comment (`comment create --data`): `comment_html`.
 - Link (`link create --data`): `url`, `title`.
 - Intake (`intake update --data`): `status` (`-2` Pending | `-1` Rejected |
   `0` Snoozed | `1` Accepted | `2` Duplicate).
@@ -64,6 +63,22 @@ plane api page update <PAGE_ID> --project <ID> --name "Design Review v2"
 plane api page get <PAGE_ID> --project <ID> --content
 plane api page list --project <ID>
 plane api page delete <PAGE_ID> --project <ID>
+```
+
+## Comments (work items)
+
+`plane api comment` writes work-item comments. The body is **Markdown**
+(converted to HTML) by default, or raw **HTML** for `.html` files or with
+`--format html`, and is sent as `comment_html`. `--work-item` accepts a UUID or
+a human identifier such as `OPEND-7` (identifiers are resolved to the work
+item's UUID before the comment call).
+
+```bash
+plane api comment create --work-item OPEND-7 --project <ID> --from-file review.md
+plane api comment create --work-item <UUID> --project <ID> --body "LGTM with one **nit**"
+plane api comment list   --work-item OPEND-7 --project <ID>
+plane api comment update <COMMENT_ID> --work-item OPEND-7 --project <ID> --from-file review.md
+plane api comment delete <COMMENT_ID> --work-item OPEND-7 --project <ID>
 ```
 
 ## Escape hatch

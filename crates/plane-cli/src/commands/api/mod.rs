@@ -1,3 +1,4 @@
+pub mod comment;
 pub mod crud;
 pub mod generic;
 pub mod me;
