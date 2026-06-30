@@ -16,15 +16,17 @@ project mutations.
 - `.github/scripts/` contains workflow-only helper scripts. Keep workflow-only
   scripts there.
 - `cli.sh` and `cli.ps1` are the repo-local operator entrypoints for support
-  tasks that do not belong in the installable `plane` binary. Current support
-  command is `./cli.sh release`.
+  tasks that do not belong in the installable `plane` binary. Every subcommand
+  is invoked with a leading colon, e.g. `./cli.sh :release` and `./cli.sh :init`.
 - `scripts/` contains the repo-local uv-managed Python support command tree
   used by the repo-local operator wrappers.
 - `.local/` is repo-local private operator state. It must stay gitignored and
   must not become a source of truth for product behavior.
-- `scripts/init.py` is the idempotent post-clone initializer. It quick-fails on
-  missing required tools or repository entrypoints, installs local hooks, and
-  exits cleanly only when the checkout is ready for development.
+- `./cli.sh :init` (`scripts/cli/init.py`) is the idempotent post-clone
+  initializer. It quick-fails on missing required tools or repository
+  entrypoints, installs local git hooks from
+  `scripts/resources/templates/hooks/`, and exits cleanly only when the checkout
+  is ready for development.
 - `manage.sh` and `manage.ps1` are the public install/uninstall entrypoints at
   the repository root.
 - `manage.sh path setup|clear` and `manage.ps1 path setup|clear` are the
@@ -56,17 +58,16 @@ commands, workflow notes, and FAQ for that subtree.
 ## Common Commands
 
 ```bash
-python3 scripts/init.py
+./cli.sh :init
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
 cargo run --locked -p plane-cli -- help
-./cli.sh release --channel=beta --dry-run
+./cli.sh :release --channel=beta --dry-run
 ```
 
-`python3 scripts/init.py` is the default post-clone command. Use `--force` only
-when intentionally replacing existing non-init hooks; the script backs them up
-first.
+`./cli.sh :init` is the default post-clone command. Use `--force` only when
+intentionally replacing existing non-init hooks; it backs them up first.
 
 ## Standard Workflow
 
@@ -75,13 +76,13 @@ first.
 After cloning or when hooks look stale, run:
 
 ```bash
-python3 scripts/init.py
+./cli.sh :init
 ```
 
-The generated hooks contain their concrete actions directly. The pre-commit
-hook currently runs fmt, cargo check, the minimal CLI help smoke, shell syntax
-checks, and PowerShell syntax checks when `pwsh` is available. The commit-msg
-hook validates the commit subject shape.
+Hook bodies live in `scripts/resources/templates/hooks/`. The pre-commit hook
+runs fmt, clippy, tests, the CLI help smoke, and shell/Python/PowerShell syntax
+checks (PowerShell only when `pwsh` is available). The commit-msg hook validates
+the commit subject shape.
 
 ### Branch Names
 
@@ -174,5 +175,6 @@ root files.
 ### Where Do Workflow Helper Scripts Go?
 
 Workflow-only helpers belong under `.github/scripts/`. The repository
-initialization entrypoint is `scripts/init.py`; additional local support
-commands, if added, should use `cli.sh` / `cli.ps1` plus `scripts/cli/`.
+initialization entrypoint is `./cli.sh :init` (`scripts/cli/init.py`); additional
+local support commands, if added, should use `cli.sh` / `cli.ps1` plus
+`scripts/cli/`.

@@ -1,41 +1,49 @@
 #!/usr/bin/env sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-COMMAND=${1:-help}
-[ $# -gt 0 ] && shift || true
+commands="release init"
 
 usage() {
-  cat <<'EOF'
-plane repo operator
-
-Usage:
-  ./cli.sh release --channel=stable|beta [options]
-
-Commands:
-  release    Trigger a release workflow.
-EOF
+  echo "usage: ./cli.sh :<command> [args...]" >&2
+  echo "commands: $commands" >&2
 }
 
-case "$COMMAND" in
-  help|-h|--help)
-    usage
-    exit 0
-    ;;
-  release)
-    ;;
+if [ "$#" -lt 1 ]; then
+  usage
+  exit 1
+fi
+
+case "$1" in
+  :*) name="${1#:}" ;;
   *)
-    echo "unknown command: $COMMAND" >&2
-    usage >&2
-    exit 2
+    usage
+    exit 1
     ;;
 esac
+
+found=0
+for command in $commands; do
+  if [ "$command" = "$name" ]; then
+    found=1
+    break
+  fi
+done
+
+if [ "$found" -ne 1 ]; then
+  echo "unknown command: :$name" >&2
+  usage
+  exit 1
+fi
 
 if ! command -v uv >/dev/null 2>&1; then
   echo "missing dependency: uv" >&2
   exit 1
 fi
 
-PYTHONPATH="$ROOT/scripts${PYTHONPATH+:$PYTHONPATH}"
+module=$(printf '%s' "$name" | tr '-' '_')
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+shift
+cd "$root"
+PYTHONPATH="$root/scripts${PYTHONPATH+:$PYTHONPATH}"
 export PYTHONPATH
-exec uv run --project "$ROOT/scripts" python -m "cli.$COMMAND" "$@"
+exec uv run --project "$root/scripts" python -m "cli.$module" "$@"

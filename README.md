@@ -111,7 +111,7 @@ For `.local/.plane/plane.toml`, the example above keeps managed state under
 ## Development
 
 ```bash
-python3 scripts/init.py
+./cli.sh :init
 cargo fmt --all --check
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo test --locked --workspace
@@ -122,8 +122,8 @@ Repo-local operator commands use `cli.sh` / `cli.ps1` wrappers rather than the
 installable `plane` binary:
 
 ```bash
-./cli.sh release --channel=beta [options]
-./cli.sh release --channel=stable [options]
+./cli.sh :release --channel=beta [options]
+./cli.sh :release --channel=stable [options]
 ```
 
 Create and merge PRs through GitHub directly so organization review rules stay
