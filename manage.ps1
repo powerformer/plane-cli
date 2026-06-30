@@ -18,6 +18,7 @@ plane manager
 
 Usage:
   manage.ps1 install [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
+  manage.ps1 upgrade [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
   manage.ps1 uninstall [--version vX.Y.Z]
 
 Environment:
@@ -77,7 +78,7 @@ function Installed-Versions {
     if (![System.IO.Directory]::Exists($installRoot)) {
         return @()
     }
-    return @(Get-ChildItem -LiteralPath $installRoot -Directory | Where-Object { $_.Name -ne $Current } | ForEach-Object { $_.Name })
+    return @(Get-ChildItem -LiteralPath $installRoot -Directory | Where-Object { $_.Name -ne $Current -and $_.Name -match '^v[0-9]+' } | ForEach-Object { $_.Name })
 }
 
 function Should-Retain {
@@ -111,6 +112,7 @@ function Install-Plane {
         }
     }
     $resolvedVersion = Normalize-Version $resolvedVersion
+    $script:version = $resolvedVersion
     $oldVersions = Installed-Versions $resolvedVersion
     $retainOld = Should-Retain $oldVersions
 
@@ -142,13 +144,18 @@ function Install-Plane {
     }
 }
 
+function Upgrade-Plane {
+    Install-Plane
+    & (Join-Path $localBinDir 'plane.exe') skill upgrade --channel $channel --version $script:version --release-url $publicUrl
+}
+
 function Remove-EmptyDir {
     param([string]$Path)
     if ([System.IO.Directory]::Exists($Path)) {
         try {
-            Remove-Item -Force -ErrorAction Stop $Path
+            [System.IO.Directory]::Delete($Path, $false)
         }
-        catch [System.IO.IOException] {}
+        catch {}
     }
 }
 
@@ -189,6 +196,7 @@ function Uninstall-Plane {
 
 switch ($command) {
     'install' { Install-Plane }
+    'upgrade' { Upgrade-Plane }
     'uninstall' { Uninstall-Plane }
     default { throw "unknown command: $command" }
 }

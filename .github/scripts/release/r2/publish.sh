@@ -82,6 +82,14 @@ public_url = env["PUBLIC_URL"]
 version_prefix = env["VERSION_PREFIX"]
 latest_prefix = env["LATEST_PREFIX"]
 
+def sha256(path):
+    import hashlib
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
 def artifact(name, content_type):
     path = root / name
     if not path.is_file():
@@ -89,6 +97,7 @@ def artifact(name, content_type):
     return {
         "contentType": content_type,
         "name": name,
+        "sha256": sha256(path),
         "size": path.stat().st_size,
         "url": f"{public_url}/{version_prefix}/{name}",
     }
@@ -121,6 +130,8 @@ metadata = {
         "macArm64": artifact("plane-aarch64-apple-darwin.tar.gz", "application/gzip"),
         "macX64": artifact("plane-x86_64-apple-darwin.tar.gz", "application/gzip"),
         "winX64": artifact("plane-x86_64-pc-windows-msvc.zip", "application/zip"),
+        "skillTarGz": artifact("plane-cli.tar.gz", "application/gzip"),
+        "skillZip": artifact("plane-cli.zip", "application/zip"),
         "checksums": artifact("checksums.txt", "text/plain; charset=utf-8"),
     },
 }

@@ -2,9 +2,8 @@
 
 Public Rust command line interface for Plane.
 
-The first release is intentionally small. `plane` currently provides stable
-help and version output while the repository, release, and installation
-machinery are put in place.
+`plane` includes self-describing help and a managed agent skill installer for
+Claude Code, Codex, OpenCode, and explicit custom paths.
 
 ## Install
 
@@ -38,13 +37,30 @@ Uninstall:
 curl -fsSL https://releases.plane.powerformer.net/manage.sh | sh -s -- uninstall
 ```
 
+Upgrade the binary and any already-managed skill installations:
+
+```bash
+curl -fsSL https://releases.plane.powerformer.net/manage.sh | sh -s -- upgrade
+```
+
 ## Usage
 
 ```bash
 plane help
 plane --help
 plane --version
+plane skill --help
+plane skill install --help
+plane skill install --channel beta
+plane skill install --path /path/to/skills/plane-cli --channel beta
+plane skill list
+plane skill upgrade --channel beta
+plane skill uninstall
 ```
+
+`plane skill install` writes managed state to `$PLANE_HOME/state/skills.json`.
+`plane skill uninstall` only removes paths recorded there and confirmed by the
+installed skill's `metadata.json`.
 
 ## Development
 

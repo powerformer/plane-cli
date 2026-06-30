@@ -4,14 +4,12 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
-import time
-import urllib.error
-import urllib.request
+import tempfile
 from pathlib import Path
 
 
-BOOTSTRAP_404_RETRY_SECONDS = 15
 USER_AGENT = "plane-release-stable/1.0"
 
 
@@ -55,43 +53,71 @@ def output(name: str, value: str) -> None:
             handle.write(f"{name}={value}\n")
 
 
-def _try_fetch(url: str) -> tuple[str | None, int | None]:
-    # Explicit UA: Cloudflare WAF/Bot Fight Mode 403s the default Python-urllib UA.
+def has_s3_env() -> bool:
+    names = [
+        "PLANE_RELEASES_S3_AK",
+        "PLANE_RELEASES_S3_SK",
+        "PLANE_RELEASES_S3_BUCKET",
+        "PLANE_RELEASES_S3_URL",
+    ]
+    return all(os.environ.get(name) for name in names)
+
+
+def fetch_optional_text_from_s3(key: str) -> str | None:
+    with tempfile.TemporaryDirectory(prefix="plane-release-stable-") as tmp:
+        output_path = Path(tmp) / "metadata.json"
+        env = {
+            **os.environ,
+            "AWS_ACCESS_KEY_ID": os.environ["PLANE_RELEASES_S3_AK"],
+            "AWS_SECRET_ACCESS_KEY": os.environ["PLANE_RELEASES_S3_SK"],
+            "AWS_DEFAULT_REGION": "auto",
+            "AWS_EC2_METADATA_DISABLED": "true",
+        }
+        result = subprocess.run(
+            [
+                "aws",
+                "--endpoint-url",
+                os.environ["PLANE_RELEASES_S3_URL"].rstrip("/"),
+                "s3api",
+                "get-object",
+                "--bucket",
+                os.environ["PLANE_RELEASES_S3_BUCKET"],
+                "--key",
+                key,
+                str(output_path),
+                "--no-cli-pager",
+            ],
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode == 0:
+            return output_path.read_text(encoding="utf-8")
+        stderr = result.stderr.strip()
+        if "NoSuchKey" in stderr or "Not Found" in stderr or "404" in stderr:
+            return None
+        fail(f"failed to read R2 stable metadata object {key}: {stderr}")
+    return None
+
+
+def fetch_optional_text_from_url(url: str) -> str | None:
+    import urllib.error
+    import urllib.request
+
     request = urllib.request.Request(
         url,
         headers={"Cache-Control": "no-cache", "User-Agent": USER_AGENT},
     )
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
-            return response.read().decode("utf-8"), None
+            return response.read().decode("utf-8")
     except urllib.error.HTTPError as error:
-        return None, error.code
-    except urllib.error.URLError as error:
-        fail(f"failed to fetch R2 stable metadata: {error}")
-        return None, None
-
-
-def fetch_optional_text(url: str) -> str | None:
-    text, code = _try_fetch(url)
-    if text is not None:
-        return text
-    if code == 403:
-        fail("R2 stable metadata returned HTTP 403; permission errors must not be treated as missing metadata")
-    if code == 404:
-        # Confirm a true 404 across the R2 propagation window before bootstrapping.
-        print(
-            f"[release-stable] R2 stable metadata returned 404; retrying after "
-            f"{BOOTSTRAP_404_RETRY_SECONDS}s to confirm absence"
-        )
-        time.sleep(BOOTSTRAP_404_RETRY_SECONDS)
-        text, code = _try_fetch(url)
-        if text is not None:
-            return text
-        if code == 403:
-            fail("R2 stable metadata returned HTTP 403 on retry; refusing to bootstrap on permission error")
-        if code == 404:
+        if error.code == 404:
             return None
-    fail(f"failed to fetch R2 stable metadata: HTTP {code}")
+        fail(f"public stable metadata returned HTTP {error.code}: {url}")
+    except urllib.error.URLError as error:
+        fail(f"failed to fetch public stable metadata: {error}")
     return None
 
 
@@ -110,14 +136,18 @@ def read_metadata_stable(metadata: dict[str, object]) -> str:
 
 def next_stable(cargo_version: str) -> tuple[str, str, str]:
     public_url = os.environ.get("PLANE_RELEASES_PUBLIC_URL", "").rstrip("/")
-    metadata_url = os.environ.get("PLANE_STABLE_METADATA_URL")
-    if not metadata_url:
-        if not public_url:
-            fail("PLANE_RELEASES_PUBLIC_URL is required")
-        metadata_url = f"{public_url}/stable/latest/metadata.json"
-
-    print(f"[release-stable] metadata url: {metadata_url}")
-    text = fetch_optional_text(metadata_url)
+    metadata_key = "stable/latest/metadata.json"
+    if has_s3_env():
+        print(f"[release-stable] metadata object: s3://{os.environ['PLANE_RELEASES_S3_BUCKET']}/{metadata_key}")
+        text = fetch_optional_text_from_s3(metadata_key)
+    else:
+        metadata_url = os.environ.get("PLANE_STABLE_METADATA_URL")
+        if not metadata_url:
+            if not public_url:
+                fail("PLANE_RELEASES_PUBLIC_URL is required")
+            metadata_url = f"{public_url}/stable/latest/metadata.json"
+        print(f"[release-stable] metadata url: {metadata_url}")
+        text = fetch_optional_text_from_url(metadata_url)
     if text is None:
         print(f"[release-stable] R2 stable metadata not found; releasing first stable v{cargo_version}")
         return cargo_version, f"v{cargo_version}", "missing R2 stable metadata"
