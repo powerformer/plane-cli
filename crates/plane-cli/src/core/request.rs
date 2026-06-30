@@ -56,6 +56,14 @@ impl Client {
         self.send("POST", path, &[], Some(body))
     }
 
+    pub fn patch(&self, path: &str, body: &Value) -> Result<Value, ApiError> {
+        self.send("PATCH", path, &[], Some(body))
+    }
+
+    pub fn delete(&self, path: &str) -> Result<Value, ApiError> {
+        self.send("DELETE", path, &[], None)
+    }
+
     fn send(
         &self,
         method: &str,

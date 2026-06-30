@@ -1,30 +1,59 @@
-use super::{render_json, require_workspace};
+use super::{
+    as_query_refs, collect_list, parse_data_object, pretty_json, query_pairs, render_json,
+    require_workspace,
+};
 use crate::core::app::AppState;
-use crate::core::model::common::Paginated;
 use crate::core::model::project::Project;
 use crate::core::request::Client;
+use serde_json::Value;
 
-pub fn list(state: &AppState, json: bool) -> Result<String, String> {
-    let workspace = require_workspace(state)?;
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
-    let value = client
-        .get(&format!("workspaces/{workspace}/projects/"), &[])
-        .map_err(|error| error.to_string())?;
-    if json {
-        return render_json(&value);
-    }
-    let page: Paginated<Project> = serde_json::from_value(value)
-        .map_err(|error| format!("failed to parse projects: {error}"))?;
-    Ok(render_list(&page))
+pub struct ListOptions {
+    pub all: bool,
+    pub fields: Option<String>,
+    pub expand: Option<String>,
+    pub json: bool,
 }
 
-pub fn get(state: &AppState, id: &str, json: bool) -> Result<String, String> {
+pub struct GetOptions {
+    pub fields: Option<String>,
+    pub expand: Option<String>,
+    pub json: bool,
+}
+
+pub struct CreateOptions {
+    pub name: String,
+    pub identifier: String,
+    pub data: Option<String>,
+    pub dry_run: bool,
+    pub json: bool,
+}
+
+pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
     let workspace = require_workspace(state)?;
     let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let path = format!("workspaces/{workspace}/projects/");
+    let base = query_pairs(&options.fields, &options.expand);
+    if options.json {
+        let value = client
+            .get(&path, &as_query_refs(&base))
+            .map_err(|error| error.to_string())?;
+        return render_json(&value);
+    }
+    let projects: Vec<Project> = collect_list(&client, &path, &base, options.all)?;
+    Ok(render_list(&projects))
+}
+
+pub fn get(state: &AppState, id: &str, options: GetOptions) -> Result<String, String> {
+    let workspace = require_workspace(state)?;
+    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let pairs = query_pairs(&options.fields, &options.expand);
     let value = client
-        .get(&format!("workspaces/{workspace}/projects/{id}/"), &[])
+        .get(
+            &format!("workspaces/{workspace}/projects/{id}/"),
+            &as_query_refs(&pairs),
+        )
         .map_err(|error| error.to_string())?;
-    if json {
+    if options.json {
         return render_json(&value);
     }
     let project: Project = serde_json::from_value(value)
@@ -32,12 +61,40 @@ pub fn get(state: &AppState, id: &str, json: bool) -> Result<String, String> {
     Ok(render_one(&project))
 }
 
-fn render_list(page: &Paginated<Project>) -> String {
-    if page.results.is_empty() {
+pub fn create(state: &AppState, options: CreateOptions) -> Result<String, String> {
+    let workspace = require_workspace(state)?;
+    let mut body = parse_data_object(&options.data)?;
+    let object = body.as_object_mut().expect("data is an object");
+    object.insert("name".to_string(), Value::String(options.name.clone()));
+    object.insert(
+        "identifier".to_string(),
+        Value::String(options.identifier.clone()),
+    );
+    let path = format!("workspaces/{workspace}/projects/");
+    if options.dry_run {
+        return Ok(format!(
+            "DRY RUN POST /api/v1/{path}\n{}\n",
+            pretty_json(&body)?
+        ));
+    }
+    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let value = client
+        .post(&path, &body)
+        .map_err(|error| error.to_string())?;
+    if options.json {
+        return render_json(&value);
+    }
+    let project: Project = serde_json::from_value(value)
+        .map_err(|error| format!("failed to parse project: {error}"))?;
+    Ok(format!("created {}", render_one(&project)))
+}
+
+fn render_list(projects: &[Project]) -> String {
+    if projects.is_empty() {
         return "no projects\n".to_string();
     }
     let mut out = String::new();
-    for project in &page.results {
+    for project in projects {
         out.push_str(&render_row(project));
     }
     out

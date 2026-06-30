@@ -141,10 +141,26 @@ enum ProjectSubcommand {
     List(ProjectListCommand),
     #[command(about = "Get a project by id.")]
     Get(ProjectGetCommand),
+    #[command(about = "Create a project in the workspace.")]
+    Create(ProjectCreateCommand),
 }
 
 #[derive(Debug, Args)]
 struct ProjectListCommand {
+    #[arg(long, help = "Follow cursor pages and list every result.")]
+    all: bool,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated response fields to include."
+    )]
+    fields: Option<String>,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated relations to expand."
+    )]
+    expand: Option<String>,
     #[arg(long, help = "Print the raw JSON response.")]
     json: bool,
 }
@@ -153,6 +169,32 @@ struct ProjectListCommand {
 struct ProjectGetCommand {
     #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
     id: String,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated response fields to include."
+    )]
+    fields: Option<String>,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated relations to expand."
+    )]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct ProjectCreateCommand {
+    #[arg(long, help = "Project name (required).")]
+    name: String,
+    #[arg(long, help = "Project identifier, e.g. PROJ (required).")]
+    identifier: String,
+    #[arg(long, value_name = "JSON", help = "Extra fields as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
     #[arg(long, help = "Print the raw JSON response.")]
     json: bool,
 }
@@ -171,12 +213,30 @@ enum WorkItemSubcommand {
     Get(WorkItemGetCommand),
     #[command(about = "Create a work item in a project.")]
     Create(WorkItemCreateCommand),
+    #[command(about = "Update a work item by id.")]
+    Update(WorkItemUpdateCommand),
+    #[command(about = "Delete a work item by id.")]
+    Delete(WorkItemDeleteCommand),
 }
 
 #[derive(Debug, Args)]
 struct WorkItemListCommand {
     #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
     project: String,
+    #[arg(long, help = "Follow cursor pages and list every result.")]
+    all: bool,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated response fields to include."
+    )]
+    fields: Option<String>,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated relations to expand."
+    )]
+    expand: Option<String>,
     #[arg(long, help = "Print the raw JSON response.")]
     json: bool,
 }
@@ -187,6 +247,18 @@ struct WorkItemGetCommand {
     project: String,
     #[arg(value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
     id: String,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated response fields to include."
+    )]
+    fields: Option<String>,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated relations to expand."
+    )]
+    expand: Option<String>,
     #[arg(long, help = "Print the raw JSON response.")]
     json: bool,
 }
@@ -207,6 +279,32 @@ struct WorkItemCreateCommand {
     dry_run: bool,
     #[arg(long, help = "Print the raw JSON response.")]
     json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WorkItemUpdateCommand {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    id: String,
+    #[arg(long, help = "New work item title.")]
+    name: Option<String>,
+    #[arg(long, value_name = "JSON", help = "Fields to change as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WorkItemDeleteCommand {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
 }
 
 #[derive(Debug, Args)]
@@ -423,14 +521,56 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
     let result = match command.command {
         ApiSubcommand::Me(command) => api::me::me(state, ApiMeOptions { json: command.json }),
         ApiSubcommand::Project(command) => match command.command {
-            ProjectSubcommand::List(args) => api::project::list(state, args.json),
-            ProjectSubcommand::Get(args) => api::project::get(state, &args.id, args.json),
+            ProjectSubcommand::List(args) => api::project::list(
+                state,
+                api::project::ListOptions {
+                    all: args.all,
+                    fields: args.fields,
+                    expand: args.expand,
+                    json: args.json,
+                },
+            ),
+            ProjectSubcommand::Get(args) => api::project::get(
+                state,
+                &args.id,
+                api::project::GetOptions {
+                    fields: args.fields,
+                    expand: args.expand,
+                    json: args.json,
+                },
+            ),
+            ProjectSubcommand::Create(args) => api::project::create(
+                state,
+                api::project::CreateOptions {
+                    name: args.name,
+                    identifier: args.identifier,
+                    data: args.data,
+                    dry_run: args.dry_run,
+                    json: args.json,
+                },
+            ),
         },
         ApiSubcommand::WorkItem(command) => match command.command {
-            WorkItemSubcommand::List(args) => api::work_item::list(state, &args.project, args.json),
-            WorkItemSubcommand::Get(args) => {
-                api::work_item::get(state, &args.project, &args.id, args.json)
-            }
+            WorkItemSubcommand::List(args) => api::work_item::list(
+                state,
+                api::work_item::ListOptions {
+                    project: args.project,
+                    all: args.all,
+                    fields: args.fields,
+                    expand: args.expand,
+                    json: args.json,
+                },
+            ),
+            WorkItemSubcommand::Get(args) => api::work_item::get(
+                state,
+                api::work_item::GetOptions {
+                    project: args.project,
+                    id: args.id,
+                    fields: args.fields,
+                    expand: args.expand,
+                    json: args.json,
+                },
+            ),
             WorkItemSubcommand::Create(args) => api::work_item::create(
                 state,
                 api::work_item::CreateOptions {
@@ -439,6 +579,25 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
                     data: args.data,
                     dry_run: args.dry_run,
                     json: args.json,
+                },
+            ),
+            WorkItemSubcommand::Update(args) => api::work_item::update(
+                state,
+                api::work_item::UpdateOptions {
+                    project: args.project,
+                    id: args.id,
+                    name: args.name,
+                    data: args.data,
+                    dry_run: args.dry_run,
+                    json: args.json,
+                },
+            ),
+            WorkItemSubcommand::Delete(args) => api::work_item::delete(
+                state,
+                api::work_item::DeleteOptions {
+                    project: args.project,
+                    id: args.id,
+                    dry_run: args.dry_run,
                 },
             ),
         },
