@@ -1,8 +1,8 @@
 ---
 name: plane-cli
-description: Use when installing, upgrading, or managing Plane CLI agent skills, or when working in a repository that expects the Plane CLI.
+description: Use when installing, bootstrapping, upgrading, or managing the Plane CLI and its agent skills, or when working in a repository that expects the Plane CLI.
 metadata:
-  short-description: Manage Plane CLI and Plane agent skills
+  short-description: Bootstrap and manage Plane CLI and agent skills
 ---
 
 # plane-cli
@@ -10,6 +10,68 @@ metadata:
 Use `plane` when the user asks to install, upgrade, or manage Plane CLI agent skills, or when they are working in a repository that expects the Plane CLI.
 
 The CLI is the command truth source. Prefer running `plane --help`, `plane skill --help`, or a subcommand-specific `--help` before assuming behavior.
+
+## Bootstrap
+
+Go from nothing to a working `plane` on a new machine.
+
+### 1. Install
+
+Unix or macOS:
+
+```bash
+curl -fsSL https://releases.plane.powerformer.net/manage.sh | sh -s -- install --channel beta
+```
+
+Windows PowerShell:
+
+```powershell
+$m = Join-Path $env:TEMP "plane-manage.ps1"
+iwr https://releases.plane.powerformer.net/manage.ps1 -OutFile $m
+pwsh -File $m install --channel beta
+```
+
+The manager installs a command entry at `~/.local/bin/plane` (Unix) or
+`%USERPROFILE%\.local\bin\plane.cmd` (Windows). If that directory is not on
+`PATH`, call the full path, or run the manager with `path setup` and reopen the
+shell.
+
+### 2. Verify the help loop
+
+```bash
+plane --version
+plane help
+```
+
+### 3. Configure API access
+
+Point the CLI at your own Plane backend and a personal API token you generate in
+your Plane account. Replace `<PLANE_BASE_URL>` with your Plane server URL (the
+CLI appends `/api/v1`) and `<PLANE_API_TOKEN>` with your token.
+
+Persistent, in `~/.plane/plane.toml`:
+
+```toml
+api_base_url = "<PLANE_BASE_URL>"
+api_key = "<PLANE_API_TOKEN>"
+```
+
+One-off, via environment for a single command:
+
+```bash
+PLANE_API_BASE_URL=<PLANE_BASE_URL> PLANE_API_KEY=<PLANE_API_TOKEN> plane api me
+```
+
+### 4. Verify the API loop
+
+```bash
+plane api me
+```
+
+Success prints a short summary of the authenticated user. The token is sent as
+`X-API-Key` and is never printed. Whether the request reaches your backend
+depends on your own network access (for example IP allowlisting) and token
+validity, which are outside the CLI.
 
 ## Common Commands
 
