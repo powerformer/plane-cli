@@ -133,6 +133,16 @@ enum ApiSubcommand {
     Estimate(ApiEstimateCommand),
     #[command(name = "intake", about = "Intake work item CRUD in a project.")]
     Intake(ApiIntakeCommand),
+    #[command(about = "Work item comments (CRUD).")]
+    Comment(ApiCommentCommand),
+    #[command(about = "Work item links (CRUD).")]
+    Link(ApiLinkCommand),
+    #[command(about = "Work item relations (list/create).")]
+    Relation(ApiRelationCommand),
+    #[command(about = "Work item activity (read-only).")]
+    Activity(ApiActivityCommand),
+    #[command(about = "Project members (CRUD).")]
+    Member(ApiMemberCommand),
 }
 
 #[derive(Debug, Args)]
@@ -525,6 +535,210 @@ struct CrudDeleteArgs {
 }
 
 #[derive(Debug, Args)]
+struct ApiCommentCommand {
+    #[command(subcommand)]
+    command: WiSubCommand,
+}
+
+#[derive(Debug, Args)]
+struct ApiLinkCommand {
+    #[command(subcommand)]
+    command: WiSubCommand,
+}
+
+#[derive(Debug, Args)]
+struct ApiRelationCommand {
+    #[command(subcommand)]
+    command: WiSubCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum WiSubCommand {
+    #[command(about = "List sub-resources of a work item.")]
+    List(WiSubListArgs),
+    #[command(about = "Get a sub-resource by id.")]
+    Get(WiSubGetArgs),
+    #[command(about = "Create a sub-resource (body via --data).")]
+    Create(WiSubCreateArgs),
+    #[command(about = "Update a sub-resource by id (body via --data).")]
+    Update(WiSubUpdateArgs),
+    #[command(about = "Delete a sub-resource by id.")]
+    Delete(WiSubDeleteArgs),
+}
+
+#[derive(Debug, Args)]
+struct WiSubListArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    work_item: String,
+    #[arg(long, help = "Follow cursor pages and list every result.")]
+    all: bool,
+    #[arg(long, value_name = "CSV", help = "Response fields to include.")]
+    fields: Option<String>,
+    #[arg(long, value_name = "CSV", help = "Relations to expand.")]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WiSubGetArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    work_item: String,
+    #[arg(value_name = "ID", help = "Sub-resource id (UUID).")]
+    id: String,
+    #[arg(long, value_name = "CSV", help = "Response fields to include.")]
+    fields: Option<String>,
+    #[arg(long, value_name = "CSV", help = "Relations to expand.")]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WiSubCreateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    work_item: String,
+    #[arg(long, value_name = "JSON", help = "Request body as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WiSubUpdateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    work_item: String,
+    #[arg(value_name = "ID", help = "Sub-resource id (UUID).")]
+    id: String,
+    #[arg(long, value_name = "JSON", help = "Fields to change as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WiSubDeleteArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    work_item: String,
+    #[arg(value_name = "ID", help = "Sub-resource id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct ApiActivityCommand {
+    #[command(subcommand)]
+    command: ActivitySubCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ActivitySubCommand {
+    #[command(about = "List a work item's activity.")]
+    List(WiSubListArgs),
+    #[command(about = "Get an activity entry by id.")]
+    Get(WiSubGetArgs),
+}
+
+#[derive(Debug, Args)]
+struct ApiMemberCommand {
+    #[command(subcommand)]
+    command: MemberSubCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum MemberSubCommand {
+    #[command(about = "List members of a project.")]
+    List(MemberListArgs),
+    #[command(about = "Get a project member by id.")]
+    Get(MemberGetArgs),
+    #[command(about = "Add a member to a project (body via --data).")]
+    Create(MemberCreateArgs),
+    #[command(about = "Update a project member by id (body via --data).")]
+    Update(MemberUpdateArgs),
+    #[command(about = "Remove a project member by id.")]
+    Delete(MemberDeleteArgs),
+}
+
+#[derive(Debug, Args)]
+struct MemberListArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, help = "Follow cursor pages and list every result.")]
+    all: bool,
+    #[arg(long, value_name = "CSV", help = "Response fields to include.")]
+    fields: Option<String>,
+    #[arg(long, value_name = "CSV", help = "Relations to expand.")]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct MemberGetArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "ID", help = "Member id (UUID).")]
+    id: String,
+    #[arg(long, value_name = "CSV", help = "Response fields to include.")]
+    fields: Option<String>,
+    #[arg(long, value_name = "CSV", help = "Relations to expand.")]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct MemberCreateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, value_name = "JSON", help = "Request body as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct MemberUpdateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "ID", help = "Member id (UUID).")]
+    id: String,
+    #[arg(long, value_name = "JSON", help = "Fields to change as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct MemberDeleteArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "ID", help = "Member id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
+}
+
+#[derive(Debug, Args)]
 struct SkillCommand {
     #[command(subcommand)]
     command: SkillSubcommand,
@@ -837,6 +1051,11 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
         ApiSubcommand::Module(command) => execute_crud(state, "modules", command.command),
         ApiSubcommand::Estimate(command) => execute_crud(state, "estimates", command.command),
         ApiSubcommand::Intake(command) => execute_crud(state, "intake-issues", command.command),
+        ApiSubcommand::Comment(command) => execute_wi_sub(state, "comments", command.command),
+        ApiSubcommand::Link(command) => execute_wi_sub(state, "links", command.command),
+        ApiSubcommand::Relation(command) => execute_wi_sub(state, "relations", command.command),
+        ApiSubcommand::Activity(command) => execute_activity(state, command.command),
+        ApiSubcommand::Member(command) => execute_member(state, command.command),
     };
     match result {
         Ok(stdout) => CommandResult::ok(stdout),
@@ -897,6 +1116,180 @@ fn execute_crud(
         ),
         CrudSubcommand::Delete(args) => {
             api::crud::delete(state, &args.project, segment, &args.id, args.dry_run)
+        }
+    }
+}
+
+fn wi_sub_collection(
+    state: &AppState,
+    project: &str,
+    work_item: &str,
+    segment: &str,
+) -> Result<String, String> {
+    let workspace = api::require_workspace(state)?;
+    Ok(format!(
+        "workspaces/{workspace}/projects/{project}/work-items/{work_item}/{segment}/"
+    ))
+}
+
+fn execute_wi_sub(
+    state: &AppState,
+    segment: &str,
+    command: WiSubCommand,
+) -> Result<String, String> {
+    match command {
+        WiSubCommand::List(a) => {
+            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            api::generic::list(
+                state,
+                &collection,
+                api::generic::ListOptions {
+                    all: a.all,
+                    fields: a.fields,
+                    expand: a.expand,
+                    json: a.json,
+                },
+            )
+        }
+        WiSubCommand::Get(a) => {
+            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            api::generic::get(
+                state,
+                &collection,
+                &a.id,
+                api::generic::GetOptions {
+                    fields: a.fields,
+                    expand: a.expand,
+                    json: a.json,
+                },
+            )
+        }
+        WiSubCommand::Create(a) => {
+            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            api::generic::create(
+                state,
+                &collection,
+                api::generic::WriteOptions {
+                    data: a.data,
+                    dry_run: a.dry_run,
+                    json: a.json,
+                },
+            )
+        }
+        WiSubCommand::Update(a) => {
+            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            api::generic::update(
+                state,
+                &collection,
+                &a.id,
+                api::generic::WriteOptions {
+                    data: a.data,
+                    dry_run: a.dry_run,
+                    json: a.json,
+                },
+            )
+        }
+        WiSubCommand::Delete(a) => {
+            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            api::generic::delete(state, &collection, &a.id, a.dry_run)
+        }
+    }
+}
+
+fn execute_activity(state: &AppState, command: ActivitySubCommand) -> Result<String, String> {
+    match command {
+        ActivitySubCommand::List(a) => {
+            let collection = wi_sub_collection(state, &a.project, &a.work_item, "activities")?;
+            api::generic::list(
+                state,
+                &collection,
+                api::generic::ListOptions {
+                    all: a.all,
+                    fields: a.fields,
+                    expand: a.expand,
+                    json: a.json,
+                },
+            )
+        }
+        ActivitySubCommand::Get(a) => {
+            let collection = wi_sub_collection(state, &a.project, &a.work_item, "activities")?;
+            api::generic::get(
+                state,
+                &collection,
+                &a.id,
+                api::generic::GetOptions {
+                    fields: a.fields,
+                    expand: a.expand,
+                    json: a.json,
+                },
+            )
+        }
+    }
+}
+
+fn member_collection(state: &AppState, project: &str) -> Result<String, String> {
+    let workspace = api::require_workspace(state)?;
+    Ok(format!(
+        "workspaces/{workspace}/projects/{project}/members/"
+    ))
+}
+
+fn execute_member(state: &AppState, command: MemberSubCommand) -> Result<String, String> {
+    match command {
+        MemberSubCommand::List(a) => {
+            let collection = member_collection(state, &a.project)?;
+            api::generic::list(
+                state,
+                &collection,
+                api::generic::ListOptions {
+                    all: a.all,
+                    fields: a.fields,
+                    expand: a.expand,
+                    json: a.json,
+                },
+            )
+        }
+        MemberSubCommand::Get(a) => {
+            let collection = member_collection(state, &a.project)?;
+            api::generic::get(
+                state,
+                &collection,
+                &a.id,
+                api::generic::GetOptions {
+                    fields: a.fields,
+                    expand: a.expand,
+                    json: a.json,
+                },
+            )
+        }
+        MemberSubCommand::Create(a) => {
+            let collection = member_collection(state, &a.project)?;
+            api::generic::create(
+                state,
+                &collection,
+                api::generic::WriteOptions {
+                    data: a.data,
+                    dry_run: a.dry_run,
+                    json: a.json,
+                },
+            )
+        }
+        MemberSubCommand::Update(a) => {
+            let collection = member_collection(state, &a.project)?;
+            api::generic::update(
+                state,
+                &collection,
+                &a.id,
+                api::generic::WriteOptions {
+                    data: a.data,
+                    dry_run: a.dry_run,
+                    json: a.json,
+                },
+            )
+        }
+        MemberSubCommand::Delete(a) => {
+            let collection = member_collection(state, &a.project)?;
+            api::generic::delete(state, &collection, &a.id, a.dry_run)
         }
     }
 }

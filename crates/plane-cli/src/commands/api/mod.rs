@@ -1,4 +1,5 @@
 pub mod crud;
+pub mod generic;
 pub mod me;
 pub mod project;
 pub mod request;
@@ -92,6 +93,14 @@ pub(crate) fn collect_list<T: serde::de::DeserializeOwned>(
         let value = client
             .get(path, &pairs)
             .map_err(|error| error.to_string())?;
+        // Some endpoints (e.g. project members) return a bare JSON array instead
+        // of a cursor-paginated envelope; accept both.
+        if value.is_array() {
+            let items: Vec<T> = serde_json::from_value(value)
+                .map_err(|error| format!("failed to parse list: {error}"))?;
+            out.extend(items);
+            break;
+        }
         let page: Paginated<T> = serde_json::from_value(value)
             .map_err(|error| format!("failed to parse list: {error}"))?;
         out.extend(page.results);
