@@ -36,9 +36,7 @@ fn render_me(api_base_url: &str, user: &Value) -> String {
             }
         });
 
-    format!(
-        "Plane API smoke ok\napi_base_url: {api_base_url}\nuser: {display_name} <{email}>\nid: {id}\n"
-    )
+    format!("user: {display_name} <{email}>\nid: {id}\napi_base_url: {api_base_url}\n")
 }
 
 fn string_field(user: &Value, field: &str) -> Option<String> {
@@ -65,8 +63,7 @@ mod tests {
             }),
         );
 
-        assert!(output.contains("Plane API smoke ok"));
-        assert!(output.contains("Ada Lovelace <ada@example.test>"));
+        assert!(output.contains("user: Ada Lovelace <ada@example.test>"));
         assert!(output.contains("id: user-id"));
     }
 }

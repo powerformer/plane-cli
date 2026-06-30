@@ -16,10 +16,10 @@ pub fn run(state: &AppState, options: RequestOptions) -> Result<String, String> 
     let path = options.path.trim_start_matches('/');
     let value = match options.method.to_uppercase().as_str() {
         "GET" => client.get(path, &[]),
-        "POST" => {
-            let body = parse_body(options.data.as_deref())?;
-            client.post(path, &body)
-        }
+        "POST" => client.post(path, &parse_body(options.data.as_deref())?),
+        "PATCH" => client.patch(path, &parse_body(options.data.as_deref())?),
+        "PUT" => client.put(path, &parse_body(options.data.as_deref())?),
+        "DELETE" => client.delete(path),
         other => return Err(format!("unsupported method for passthrough: {other}")),
     }
     .map_err(|error| error.to_string())?;

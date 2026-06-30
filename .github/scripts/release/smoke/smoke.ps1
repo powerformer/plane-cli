@@ -146,7 +146,7 @@ function Smoke-ApiMeMock {
 
         $plane = Get-PlaneCmd
         $apiOutput = (& $plane api me | Out-String)
-        if ($apiOutput -notmatch 'Plane API smoke ok') { throw "api me did not report success: $apiOutput" }
+        if ($apiOutput -notmatch 'user:') { throw "api me did not report the current user: $apiOutput" }
         if ($apiOutput -notmatch 'smoke@plane.test') { throw "api me did not render the mock user: $apiOutput" }
         if ($apiOutput -match [regex]::Escape($apiKey)) { throw 'api me output leaked the API token' }
         & $plane api me --json | Out-Null

@@ -104,12 +104,14 @@ fn api_me_help_explains_smoke_path() {
 }
 
 #[test]
-fn api_me_requires_api_config() {
+fn api_me_requires_api_key() {
+    // api_base_url falls back to the default backend, so api_key is the only
+    // setting that must be present.
     let result = execute(&state(), &args(&["api", "me"]));
 
     assert_eq!(result.status, 1);
     assert!(result.stdout.is_empty());
-    assert!(result.stderr.contains("api_base_url is required"));
+    assert!(result.stderr.contains("api_key is required"));
 }
 
 #[test]

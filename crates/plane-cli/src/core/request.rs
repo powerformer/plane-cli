@@ -6,6 +6,10 @@ use tracing::{debug, info};
 
 const USER_AGENT: &str = "plane-cli";
 
+/// Default Plane backend used when no api_base_url is configured, so api_key is
+/// the only setting required for routine use.
+pub const DEFAULT_API_BASE_URL: &str = "https://plane.powerformer.net";
+
 /// Synchronous Plane `/api/v1` client over ureq with `X-API-Key` auth.
 ///
 /// The token is held only to set the request header; it is never logged or
@@ -24,12 +28,7 @@ impl Client {
             .api_base_url
             .as_deref()
             .map(normalize_api_base_url)
-            .ok_or_else(|| {
-                ApiError::Config(
-                    "api_base_url is required for Plane API commands; set --api-base-url, api_base_url in plane.toml, or PLANE_API_BASE_URL"
-                        .to_string(),
-                )
-            })?;
+            .unwrap_or_else(|| normalize_api_base_url(DEFAULT_API_BASE_URL));
         let api_key = state.config.api_key.clone().ok_or_else(|| {
             ApiError::Config(
                 "api_key is required for Plane API commands; set --api-key, api_key in plane.toml, or PLANE_API_KEY"
@@ -58,6 +57,10 @@ impl Client {
 
     pub fn patch(&self, path: &str, body: &Value) -> Result<Value, ApiError> {
         self.send("PATCH", path, &[], Some(body))
+    }
+
+    pub fn put(&self, path: &str, body: &Value) -> Result<Value, ApiError> {
+        self.send("PUT", path, &[], Some(body))
     }
 
     pub fn delete(&self, path: &str) -> Result<Value, ApiError> {

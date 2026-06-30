@@ -56,7 +56,7 @@ pub struct PlaneCli {
         long,
         global = true,
         value_name = "URL",
-        help = "Plane server URL or /api/v1 base URL. Overrides config api_base_url and PLANE_API_BASE_URL."
+        help = "Plane server URL or /api/v1 base URL. Overrides config api_base_url and PLANE_API_BASE_URL. Defaults to https://plane.powerformer.net."
     )]
     pub api_base_url: Option<String>,
 
@@ -118,7 +118,7 @@ enum ApiSubcommand {
     WorkItem(ApiWorkItemCommand),
     #[command(
         about = "Call an arbitrary /api/v1 path (escape hatch).",
-        long_about = "Passthrough to an arbitrary /api/v1-relative path, for endpoints the typed commands do not cover yet. Supports GET and POST."
+        long_about = "Passthrough to an arbitrary /api/v1-relative path, for endpoints the typed commands do not cover yet. Supports GET, POST, PATCH, PUT, and DELETE."
     )]
     Request(ApiRequestCommand),
     #[command(about = "State CRUD in a project.")]
@@ -143,8 +143,6 @@ enum ApiSubcommand {
     Activity(ApiActivityCommand),
     #[command(about = "Project members (CRUD).")]
     Member(ApiMemberCommand),
-    #[command(about = "Upload a file as a workspace asset.")]
-    Asset(ApiAssetCommand),
 }
 
 #[derive(Debug, Args)]
@@ -387,14 +385,22 @@ struct WorkItemDeleteCommand {
 
 #[derive(Debug, Args)]
 struct ApiRequestCommand {
-    #[arg(long, default_value = "GET", help = "HTTP method: GET or POST.")]
+    #[arg(
+        long,
+        default_value = "GET",
+        help = "HTTP method: GET, POST, PATCH, PUT, or DELETE."
+    )]
     method: String,
     #[arg(
         value_name = "PATH",
         help = "/api/v1-relative path, e.g. workspaces/<slug>/projects/."
     )]
     path: String,
-    #[arg(long, value_name = "JSON", help = "Request body JSON for POST.")]
+    #[arg(
+        long,
+        value_name = "JSON",
+        help = "Request body JSON for POST/PATCH/PUT."
+    )]
     data: Option<String>,
 }
 
@@ -755,38 +761,6 @@ struct WorkspaceMemberListArgs {
 }
 
 #[derive(Debug, Args)]
-struct ApiAssetCommand {
-    #[command(subcommand)]
-    command: AssetSubCommand,
-}
-
-#[derive(Debug, Subcommand)]
-enum AssetSubCommand {
-    #[command(about = "Upload a file (presign + S3 + confirm).")]
-    Upload(AssetUploadArgs),
-}
-
-#[derive(Debug, Args)]
-struct AssetUploadArgs {
-    #[arg(long, value_name = "PATH", help = "File to upload.")]
-    file: PathBuf,
-    #[arg(long, value_name = "PROJECT_ID", help = "Bind the asset to a project.")]
-    project: Option<String>,
-    #[arg(
-        long = "type",
-        value_name = "MIME",
-        help = "Content type (default: inferred from extension)."
-    )]
-    content_type: Option<String>,
-    #[arg(long, help = "Override the stored file name.")]
-    name: Option<String>,
-    #[arg(long, help = "Print what would be uploaded without sending.")]
-    dry_run: bool,
-    #[arg(long, help = "Print the raw presign JSON response.")]
-    json: bool,
-}
-
-#[derive(Debug, Args)]
 struct SkillCommand {
     #[command(subcommand)]
     command: SkillSubcommand,
@@ -1104,19 +1078,6 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
         ApiSubcommand::Relation(command) => execute_wi_sub(state, "relations", command.command),
         ApiSubcommand::Activity(command) => execute_activity(state, command.command),
         ApiSubcommand::Member(command) => execute_member(state, command.command),
-        ApiSubcommand::Asset(command) => match command.command {
-            AssetSubCommand::Upload(args) => api::asset::upload(
-                state,
-                api::asset::UploadOptions {
-                    file: args.file,
-                    project: args.project,
-                    content_type: args.content_type,
-                    name: args.name,
-                    dry_run: args.dry_run,
-                    json: args.json,
-                },
-            ),
-        },
     };
     match result {
         Ok(stdout) => CommandResult::ok(stdout),

@@ -6,7 +6,8 @@
 //! segment) and this renders loosely from `serde_json::Value` (id + a label).
 
 use super::{
-    as_query_refs, collect_list, parse_data_object, pretty_json, query_pairs, render_json,
+    as_query_refs, collect_list, list_json, parse_data_object, pretty_json, query_pairs,
+    render_json,
 };
 use crate::core::app::AppState;
 use crate::core::request::Client;
@@ -35,10 +36,7 @@ pub fn list(state: &AppState, collection: &str, options: ListOptions) -> Result<
     let client = Client::from_state(state).map_err(|error| error.to_string())?;
     let base = query_pairs(&options.fields, &options.expand);
     if options.json {
-        let value = client
-            .get(collection, &as_query_refs(&base))
-            .map_err(|error| error.to_string())?;
-        return render_json(&value);
+        return list_json(&client, collection, &base, options.all);
     }
     let items: Vec<Value> = collect_list(&client, collection, &base, options.all)?;
     Ok(render_records(&items))
@@ -133,12 +131,27 @@ fn render_record(value: &Value) -> String {
     let id = field(value, "id")
         .or_else(|| field(value, "member"))
         .unwrap_or("<no id>");
+    // comments carry no name/title; fall back to their text so the row is not
+    // an id with a blank label.
     let label = field(value, "name")
         .or_else(|| field(value, "title"))
         .or_else(|| field(value, "display_name"))
         .or_else(|| field(value, "url"))
-        .unwrap_or("");
+        .or_else(|| field(value, "comment_stripped"))
+        .map(summarize)
+        .unwrap_or_default();
     format!("{id}  {label}\n")
+}
+
+/// Collapse a label to a single, length-bounded line for human output.
+fn summarize(text: &str) -> String {
+    let first_line = text.lines().next().unwrap_or("").trim();
+    if first_line.chars().count() > 80 {
+        let head: String = first_line.chars().take(79).collect();
+        format!("{head}…")
+    } else {
+        first_line.to_string()
+    }
 }
 
 fn field<'a>(value: &'a Value, key: &str) -> Option<&'a str> {

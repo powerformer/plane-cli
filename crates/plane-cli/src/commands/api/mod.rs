@@ -1,4 +1,3 @@
-pub mod asset;
 pub mod crud;
 pub mod generic;
 pub mod me;
@@ -75,6 +74,26 @@ pub(crate) fn parse_data_object(data: &Option<String>) -> Result<Value, String> 
         return Err("--data must be a JSON object".to_string());
     }
     Ok(value)
+}
+
+/// Render a list endpoint as `--json`. Without `--all` this is the raw first
+/// page (envelope as the server returns it); with `--all` the cursor pages are
+/// followed and accumulated into a single JSON array of results.
+pub(crate) fn list_json(
+    client: &Client,
+    path: &str,
+    base: &[(String, String)],
+    all: bool,
+) -> Result<String, String> {
+    if all {
+        let items: Vec<Value> = collect_list(client, path, base, true)?;
+        render_json(&Value::Array(items))
+    } else {
+        let value = client
+            .get(path, &as_query_refs(base))
+            .map_err(|error| error.to_string())?;
+        render_json(&value)
+    }
 }
 
 /// GET a list endpoint and collect results, optionally following cursor pages.

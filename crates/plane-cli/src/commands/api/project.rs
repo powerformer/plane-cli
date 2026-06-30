@@ -1,6 +1,6 @@
 use super::{
-    as_query_refs, collect_list, parse_data_object, pretty_json, query_pairs, render_json,
-    require_workspace,
+    as_query_refs, collect_list, list_json, parse_data_object, pretty_json, query_pairs,
+    render_json, require_workspace,
 };
 use crate::core::app::AppState;
 use crate::core::model::project::Project;
@@ -34,10 +34,7 @@ pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
     let path = format!("workspaces/{workspace}/projects/");
     let base = query_pairs(&options.fields, &options.expand);
     if options.json {
-        let value = client
-            .get(&path, &as_query_refs(&base))
-            .map_err(|error| error.to_string())?;
-        return render_json(&value);
+        return list_json(&client, &path, &base, options.all);
     }
     let projects: Vec<Project> = collect_list(&client, &path, &base, options.all)?;
     Ok(render_list(&projects))
