@@ -1,13 +1,15 @@
 ---
 name: plane-cli
-description: Use when installing, bootstrapping, upgrading, or managing the Plane CLI and its agent skills, or when working in a repository that expects the Plane CLI.
+description: Use when installing, configuring, or upgrading the Plane CLI, calling the Plane API (projects, work items, comments, members, intake), or managing plane-cli agent skills.
 metadata:
   short-description: Bootstrap and manage Plane CLI and agent skills
 ---
 
 # plane-cli
 
-Use `plane` when the user asks to install, upgrade, or manage Plane CLI agent skills, or when they are working in a repository that expects the Plane CLI.
+Use `plane` to install, configure, and upgrade the Plane CLI, to call the Plane
+API (projects, work items, and their sub-resources), and to manage plane-cli
+agent skills — or whenever a repository expects the Plane CLI.
 
 The CLI is the command truth source. Prefer running `plane --help`, `plane skill --help`, or a subcommand-specific `--help` before assuming behavior.
 
@@ -100,70 +102,21 @@ validity, which are outside the CLI.
 
 ## API commands
 
-Beyond `api me`, the CLI wraps the Plane REST API as typed subcommands. Run
-`plane api --help`, or `plane api <resource> --help`, for the authoritative list
-of resources and flags.
+Beyond `api me`, the CLI wraps the Plane REST API as typed subcommands —
+`project`, `work-item`, `state`/`label`/`cycle`/`module`/`estimate`/`intake`,
+`page` (documents), `comment`/`link`/`relation`/`activity`, and `member`. Most
+share the verbs `list`/`get`/`create`/`update`/`delete`, scoped by `--workspace`,
+`--project`, and `--work-item`, with `--json`, `--all`, `--fields`/`--expand`,
+`--data`, and `--dry-run`. A `request` passthrough covers anything not yet typed.
 
-- Workspace-scoped: `project`
-  (`list`/`get`/`create`/`update`/`delete`/`archive`/`unarchive`/`summary`) and
-  `member workspace-list`.
-- Project-scoped (pass `--project <PROJECT_ID>`): `work-item`, `state`, `label`,
-  `cycle`, `module`, `estimate`, `intake`, `page`, and `member`.
-- Work-item-scoped (pass `--project` and `--work-item`): `comment`, `link`,
-  `relation`, and `activity` (read-only).
+When you report a resource, also print its full URL — the Plane work-item browse
+link or the related GitHub issue/PR — so the user can jump straight to it.
 
-Most resources share the same verbs — `list`, `get`, `create`, `update`,
-`delete` — with shared conventions:
-
-- `--workspace <SLUG>` selects the workspace (or set `workspace_slug` in
-  `plane.toml`); `--project` and `--work-item` scope nested resources.
-- `--json` prints the raw API response; `--all` follows cursor pages, and with
-  `--json` accumulates every page into one JSON array.
-- `--fields <CSV>` and `--expand <CSV>` trim or expand the response.
-- `create`/`update` accept typed flags plus `--data '<JSON>'` for any other
-  fields; `--dry-run` prints the request instead of sending it.
-
-### Pages (documents)
-
-`plane api page` writes Plane pages (documents). The body is **Markdown**
-(converted to HTML) by default, or raw **HTML** for `.html` files / `--format
-html`; Plane stores it as `description_html` and the editor hydrates from it on
-first open. `--access public|private` sets visibility; `page get --content`
-prints only the body HTML.
-
-```bash
-plane api page create --project <ID> --name "Design Review" --from-file notes.md
-plane api page create --project <ID> --name "Spec" --body "## Goals" --access private
-plane api page update <PAGE_ID> --project <ID> --from-file notes.md   # replace body
-plane api page update <PAGE_ID> --project <ID> --name "Design Review v2"
-plane api page get <PAGE_ID> --project <ID> --content
-plane api page list --project <ID>
-plane api page delete <PAGE_ID> --project <ID>
-```
-
-For endpoints the typed commands do not cover, use the escape hatch, which
-supports GET, POST, PATCH, PUT, and DELETE:
-
-```bash
-plane api request --method PATCH workspaces/<slug>/projects/<id>/ --data '{"name":"New"}'
-```
-
-### Print resource links
-
-CLI output is id-centric. When you report a resource back to the user, also
-print its full URL so they can open it directly instead of re-deriving it from
-ids:
-
-- Plane work item:
-  `<SERVER_URL>/<workspace>/browse/<PROJECT_IDENTIFIER>-<sequence_id>/` — e.g.
-  `https://plane.powerformer.net/acme/browse/PLANE-7/`. `<SERVER_URL>` is the
-  Plane backend without the `/api/v1` suffix (default
-  `https://plane.powerformer.net`); the project identifier comes from
-  `plane api project get <id>`, and `sequence_id` is on the work item.
-- Related GitHub issue or pull request: print the full
-  `https://github.com/<owner>/<repo>/issues/<n>` or `.../pull/<n>` URL.
-
-Prefer absolute URLs over bare ids in any summary you write back to the user.
+- Full resource/verb tables, field values, page (document) authoring, and the
+  escape hatch: [references/api.md](./references/api.md).
+- End-to-end scenarios (stand up a project, drive a work item, triage intake):
+  [references/scenarios.md](./references/scenarios.md).
+- `plane api --help` and `plane api <resource> --help` stay the truth source.
 
 ## Managed State
 

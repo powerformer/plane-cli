@@ -89,7 +89,7 @@ enum PlaneCommand {
     Version,
     #[command(
         about = "Call the Plane API using X-API-Key authentication.",
-        long_about = "Call the Plane API using X-API-Key authentication.\n\nAPI commands read api_base_url, api_key, and workspace_slug from --api-base-url/--api-key/--workspace, then plane.toml, then PLANE_API_BASE_URL/PLANE_API_KEY/PLANE_WORKSPACE_SLUG. The first smoke command is `plane api me`, which reads /api/v1/users/me/."
+        long_about = "Call the Plane API using X-API-Key authentication.\n\nAPI commands read api_base_url, api_key, and workspace_slug from --api-base-url/--api-key/--workspace, then plane.toml, then PLANE_API_BASE_URL/PLANE_API_KEY/PLANE_WORKSPACE_SLUG. Start with `plane api me` to verify access; run `plane api --help` for the resource commands."
     )]
     Api(ApiCommand),
     #[command(about = "Install, upgrade, list, and uninstall Plane agent skills.")]
@@ -114,12 +114,9 @@ enum ApiSubcommand {
         long_about = "Smoke-test Plane API authentication by reading /api/v1/users/me/.\n\nConfigure api_base_url and api_key in plane.toml, or pass --api-base-url and --api-key. The token is sent as X-API-Key and is never printed by this command."
     )]
     Me(ApiMeCommand),
-    #[command(about = "List or get projects in the workspace.")]
+    #[command(about = "Manage projects in the workspace.")]
     Project(ApiProjectCommand),
-    #[command(
-        name = "work-item",
-        about = "List, get, or create work items in a project."
-    )]
+    #[command(name = "work-item", about = "Manage work items in a project.")]
     WorkItem(ApiWorkItemCommand),
     #[command(
         about = "Call an arbitrary /api/v1 path (escape hatch).",
@@ -157,7 +154,7 @@ enum ApiSubcommand {
 
 #[derive(Debug, Args)]
 struct ApiMeCommand {
-    #[arg(long, help = "Print the raw JSON response instead of a smoke summary.")]
+    #[arg(long, help = "Print the raw JSON response instead of a short summary.")]
     json: bool,
 }
 
