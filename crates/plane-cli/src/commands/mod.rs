@@ -143,6 +143,8 @@ enum ApiSubcommand {
     Activity(ApiActivityCommand),
     #[command(about = "Project members (CRUD).")]
     Member(ApiMemberCommand),
+    #[command(about = "Upload a file as a workspace asset.")]
+    Asset(ApiAssetCommand),
 }
 
 #[derive(Debug, Args)]
@@ -753,6 +755,38 @@ struct WorkspaceMemberListArgs {
 }
 
 #[derive(Debug, Args)]
+struct ApiAssetCommand {
+    #[command(subcommand)]
+    command: AssetSubCommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum AssetSubCommand {
+    #[command(about = "Upload a file (presign + S3 + confirm).")]
+    Upload(AssetUploadArgs),
+}
+
+#[derive(Debug, Args)]
+struct AssetUploadArgs {
+    #[arg(long, value_name = "PATH", help = "File to upload.")]
+    file: PathBuf,
+    #[arg(long, value_name = "PROJECT_ID", help = "Bind the asset to a project.")]
+    project: Option<String>,
+    #[arg(
+        long = "type",
+        value_name = "MIME",
+        help = "Content type (default: inferred from extension)."
+    )]
+    content_type: Option<String>,
+    #[arg(long, help = "Override the stored file name.")]
+    name: Option<String>,
+    #[arg(long, help = "Print what would be uploaded without sending.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw presign JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
 struct SkillCommand {
     #[command(subcommand)]
     command: SkillSubcommand,
@@ -1070,6 +1104,19 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
         ApiSubcommand::Relation(command) => execute_wi_sub(state, "relations", command.command),
         ApiSubcommand::Activity(command) => execute_activity(state, command.command),
         ApiSubcommand::Member(command) => execute_member(state, command.command),
+        ApiSubcommand::Asset(command) => match command.command {
+            AssetSubCommand::Upload(args) => api::asset::upload(
+                state,
+                api::asset::UploadOptions {
+                    file: args.file,
+                    project: args.project,
+                    content_type: args.content_type,
+                    name: args.name,
+                    dry_run: args.dry_run,
+                    json: args.json,
+                },
+            ),
+        },
     };
     match result {
         Ok(stdout) => CommandResult::ok(stdout),

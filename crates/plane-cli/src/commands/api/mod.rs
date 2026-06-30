@@ -1,3 +1,4 @@
+pub mod asset;
 pub mod crud;
 pub mod generic;
 pub mod me;
