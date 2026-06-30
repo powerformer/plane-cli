@@ -52,6 +52,10 @@ impl Client {
         self.send("GET", path, query, None)
     }
 
+    pub fn post(&self, path: &str, body: &Value) -> Result<Value, ApiError> {
+        self.send("POST", path, &[], Some(body))
+    }
+
     fn send(
         &self,
         method: &str,

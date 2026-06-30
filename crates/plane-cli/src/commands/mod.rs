@@ -109,12 +109,117 @@ enum ApiSubcommand {
         long_about = "Smoke-test Plane API authentication by reading /api/v1/users/me/.\n\nConfigure api_base_url and api_key in plane.toml, or pass --api-base-url and --api-key. The token is sent as X-API-Key and is never printed by this command."
     )]
     Me(ApiMeCommand),
+    #[command(about = "List or get projects in the workspace.")]
+    Project(ApiProjectCommand),
+    #[command(
+        name = "work-item",
+        about = "List, get, or create work items in a project."
+    )]
+    WorkItem(ApiWorkItemCommand),
+    #[command(
+        about = "Call an arbitrary /api/v1 path (escape hatch).",
+        long_about = "Passthrough to an arbitrary /api/v1-relative path, for endpoints the typed commands do not cover yet. Supports GET and POST."
+    )]
+    Request(ApiRequestCommand),
 }
 
 #[derive(Debug, Args)]
 struct ApiMeCommand {
     #[arg(long, help = "Print the raw JSON response instead of a smoke summary.")]
     json: bool,
+}
+
+#[derive(Debug, Args)]
+struct ApiProjectCommand {
+    #[command(subcommand)]
+    command: ProjectSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ProjectSubcommand {
+    #[command(about = "List projects in the workspace.")]
+    List(ProjectListCommand),
+    #[command(about = "Get a project by id.")]
+    Get(ProjectGetCommand),
+}
+
+#[derive(Debug, Args)]
+struct ProjectListCommand {
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct ProjectGetCommand {
+    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct ApiWorkItemCommand {
+    #[command(subcommand)]
+    command: WorkItemSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum WorkItemSubcommand {
+    #[command(about = "List work items in a project.")]
+    List(WorkItemListCommand),
+    #[command(about = "Get a work item by id.")]
+    Get(WorkItemGetCommand),
+    #[command(about = "Create a work item in a project.")]
+    Create(WorkItemCreateCommand),
+}
+
+#[derive(Debug, Args)]
+struct WorkItemListCommand {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WorkItemGetCommand {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WorkItemCreateCommand {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, help = "Work item title (required).")]
+    name: String,
+    #[arg(
+        long,
+        value_name = "JSON",
+        help = "Extra fields as a JSON object, merged under name."
+    )]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct ApiRequestCommand {
+    #[arg(long, default_value = "GET", help = "HTTP method: GET or POST.")]
+    method: String,
+    #[arg(
+        value_name = "PATH",
+        help = "/api/v1-relative path, e.g. workspaces/<slug>/projects/."
+    )]
+    path: String,
+    #[arg(long, value_name = "JSON", help = "Request body JSON for POST.")]
+    data: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -307,7 +412,35 @@ fn config_overrides_from_matches(matches: &ArgMatches) -> ConfigOverrides {
 
 fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
     let result = match command.command {
-        ApiSubcommand::Me(command) => api::me(state, ApiMeOptions { json: command.json }),
+        ApiSubcommand::Me(command) => api::me::me(state, ApiMeOptions { json: command.json }),
+        ApiSubcommand::Project(command) => match command.command {
+            ProjectSubcommand::List(args) => api::project::list(state, args.json),
+            ProjectSubcommand::Get(args) => api::project::get(state, &args.id, args.json),
+        },
+        ApiSubcommand::WorkItem(command) => match command.command {
+            WorkItemSubcommand::List(args) => api::work_item::list(state, &args.project, args.json),
+            WorkItemSubcommand::Get(args) => {
+                api::work_item::get(state, &args.project, &args.id, args.json)
+            }
+            WorkItemSubcommand::Create(args) => api::work_item::create(
+                state,
+                api::work_item::CreateOptions {
+                    project: args.project,
+                    name: args.name,
+                    data: args.data,
+                    dry_run: args.dry_run,
+                    json: args.json,
+                },
+            ),
+        },
+        ApiSubcommand::Request(command) => api::request::run(
+            state,
+            api::request::RequestOptions {
+                method: command.method,
+                path: command.path,
+                data: command.data,
+            },
+        ),
     };
     match result {
         Ok(stdout) => CommandResult::ok(stdout),
