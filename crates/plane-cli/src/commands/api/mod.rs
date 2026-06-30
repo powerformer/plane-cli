@@ -1,6 +1,7 @@
 pub mod crud;
 pub mod generic;
 pub mod me;
+pub mod page;
 pub mod project;
 pub mod request;
 pub mod work_item;

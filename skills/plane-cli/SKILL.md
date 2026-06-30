@@ -104,16 +104,16 @@ validity, which are outside the CLI.
 
 Beyond `api me`, the CLI wraps the Plane REST API as typed subcommands —
 `project`, `work-item`, `state`/`label`/`cycle`/`module`/`estimate`/`intake`,
-`comment`/`link`/`relation`/`activity`, and `member`. Most share the verbs
-`list`/`get`/`create`/`update`/`delete`, scoped by `--workspace`, `--project`,
-and `--work-item`, with `--json`, `--all`, `--fields`/`--expand`, `--data`, and
-`--dry-run`. A `request` passthrough covers anything not yet typed.
+`page` (documents), `comment`/`link`/`relation`/`activity`, and `member`. Most
+share the verbs `list`/`get`/`create`/`update`/`delete`, scoped by `--workspace`,
+`--project`, and `--work-item`, with `--json`, `--all`, `--fields`/`--expand`,
+`--data`, and `--dry-run`. A `request` passthrough covers anything not yet typed.
 
 When you report a resource, also print its full URL — the Plane work-item browse
 link or the related GitHub issue/PR — so the user can jump straight to it.
 
-- Full resource/verb tables, field values, and the escape hatch:
-  [references/api.md](./references/api.md).
+- Full resource/verb tables, field values, page (document) authoring, and the
+  escape hatch: [references/api.md](./references/api.md).
 - End-to-end scenarios (stand up a project, drive a work item, triage intake):
   [references/scenarios.md](./references/scenarios.md).
 - `plane api --help` and `plane api <resource> --help` stay the truth source.

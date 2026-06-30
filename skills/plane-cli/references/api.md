@@ -12,7 +12,7 @@ Most resources share the verbs `list`, `get`, `create`, `update`, `delete`.
   (`list`/`get`/`create`/`update`/`delete`/`archive`/`unarchive`/`summary`) and
   `member workspace-list`.
 - **Project-scoped** (pass `--project <PROJECT_ID>`): `work-item`, `state`,
-  `label`, `cycle`, `module`, `estimate`, `intake`, and `member`.
+  `label`, `cycle`, `module`, `estimate`, `intake`, `page`, and `member`.
 - **Work-item-scoped** (pass `--project` and `--work-item`): `comment`, `link`,
   `relation`, and `activity` (read-only).
 
@@ -47,6 +47,24 @@ For `work-item` and the project resources, pass non-typed fields through
 
 Resolve user ids with `plane api member workspace-list`; resolve state/label ids
 with `plane api state list --project <id>` / `plane api label list --project <id>`.
+
+## Pages (documents)
+
+`plane api page` writes Plane pages (documents). The body is **Markdown**
+(converted to HTML) by default, or raw **HTML** for `.html` files or with
+`--format html`; Plane stores it as `description_html` and the collaborative
+editor hydrates from it on first open. `--access public|private` sets
+visibility; `page get --content` prints only the body HTML.
+
+```bash
+plane api page create --project <ID> --name "Design Review" --from-file notes.md
+plane api page create --project <ID> --name "Spec" --body "## Goals" --access private
+plane api page update <PAGE_ID> --project <ID> --from-file notes.md   # replace body
+plane api page update <PAGE_ID> --project <ID> --name "Design Review v2"
+plane api page get <PAGE_ID> --project <ID> --content
+plane api page list --project <ID>
+plane api page delete <PAGE_ID> --project <ID>
+```
 
 ## Escape hatch
 
