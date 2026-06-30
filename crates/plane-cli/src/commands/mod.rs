@@ -7,7 +7,7 @@ use crate::core::{
     skill::{self, SkillInstallOptions, SkillUninstallOptions, SkillUpgradeOptions},
 };
 use api::ApiMeOptions;
-use clap::{ArgMatches, Args, CommandFactory, FromArgMatches, Parser, Subcommand};
+use clap::{ArgAction, ArgMatches, Args, CommandFactory, FromArgMatches, Parser, Subcommand};
 use output::CommandResult;
 use std::path::PathBuf;
 
@@ -260,16 +260,15 @@ struct SkillInstallCommand {
 
     #[arg(
         long,
-        default_value = "stable",
         value_parser = ["stable", "beta"],
-        help = "Release channel used to resolve the skill artifact."
+        help = "Release channel. Defaults to the channel matching this binary's version (-beta uses beta, otherwise stable)."
     )]
-    channel: String,
+    channel: Option<String>,
 
     #[arg(
         long,
         value_name = "VERSION",
-        help = "Release version to install, for example v0.1.0-beta.2. Defaults to the channel latest metadata."
+        help = "Release version to install. Defaults to this binary's own version so the skill matches the CLI."
     )]
     version: Option<String>,
 
@@ -279,6 +278,16 @@ struct SkillInstallCommand {
         help = "Release base URL. Overrides config releases_public_url, PLANE_RELEASES_PUBLIC_URL, and the public default."
     )]
     release_url: Option<String>,
+
+    #[arg(
+        long,
+        default_value_t = true,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        default_missing_value = "true",
+        help = "Overwrite an existing managed install (default true). Never overwrites unmanaged paths."
+    )]
+    force: bool,
 
     #[arg(long, help = "Show what would change without writing files.")]
     dry_run: bool,
@@ -457,6 +466,7 @@ fn execute_skill(state: &AppState, command: SkillCommand) -> CommandResult {
                 release_url: command.release_url,
                 channel: command.channel,
                 version: command.version,
+                force: command.force,
                 dry_run: command.dry_run,
             },
         ),
