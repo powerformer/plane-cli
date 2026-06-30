@@ -1,17 +1,9 @@
 #![allow(dead_code)]
 
-#[path = "../src/api.rs"]
-mod api;
-#[path = "../src/app.rs"]
-mod app;
-#[path = "../src/cli.rs"]
-mod cli;
-#[path = "../src/config/mod.rs"]
-mod config;
-#[path = "../src/output.rs"]
-mod output;
-#[path = "../src/skill.rs"]
-mod skill;
+#[path = "../src/commands/mod.rs"]
+mod commands;
+#[path = "../src/core/mod.rs"]
+mod core;
 
 #[path = "unit/cli.rs"]
 mod cli_cases;

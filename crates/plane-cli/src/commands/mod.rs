@@ -1,11 +1,14 @@
-use crate::{
-    api::{self, ApiMeOptions},
+pub mod api;
+pub mod output;
+
+use crate::core::{
     app::{build_version, AppState},
     config::ConfigOverrides,
-    output::CommandResult,
     skill::{self, SkillInstallOptions, SkillUninstallOptions, SkillUpgradeOptions},
 };
+use api::ApiMeOptions;
 use clap::{ArgMatches, Args, CommandFactory, FromArgMatches, Parser, Subcommand};
+use output::CommandResult;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]

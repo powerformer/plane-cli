@@ -1,27 +1,10 @@
-mod api;
-mod app;
-mod cli;
-mod config;
-mod output;
-mod skill;
+mod commands;
+mod core;
 
 fn main() {
-    init_tracing();
+    crate::core::logger::init();
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    let result = cli::execute_from_env(&args);
+    let result = commands::execute_from_env(&args);
     result.emit();
     std::process::exit(result.status);
-}
-
-fn init_tracing() {
-    let verbose = std::env::args().any(|arg| arg == "--verbose");
-    let default_level = if verbose { "debug" } else { "info" };
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(default_level));
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_target(false)
-        .without_time()
-        .with_writer(std::io::stderr)
-        .init();
 }
