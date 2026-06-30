@@ -672,6 +672,8 @@ enum MemberSubCommand {
     Update(MemberUpdateArgs),
     #[command(about = "Remove a project member by id.")]
     Delete(MemberDeleteArgs),
+    #[command(name = "workspace-list", about = "List members of the workspace.")]
+    WorkspaceList(WorkspaceMemberListArgs),
 }
 
 #[derive(Debug, Args)]
@@ -736,6 +738,18 @@ struct MemberDeleteArgs {
     id: String,
     #[arg(long, help = "Print the request without sending it.")]
     dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct WorkspaceMemberListArgs {
+    #[arg(long, help = "Follow cursor pages and list every result.")]
+    all: bool,
+    #[arg(long, value_name = "CSV", help = "Response fields to include.")]
+    fields: Option<String>,
+    #[arg(long, value_name = "CSV", help = "Relations to expand.")]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -1290,6 +1304,20 @@ fn execute_member(state: &AppState, command: MemberSubCommand) -> Result<String,
         MemberSubCommand::Delete(a) => {
             let collection = member_collection(state, &a.project)?;
             api::generic::delete(state, &collection, &a.id, a.dry_run)
+        }
+        MemberSubCommand::WorkspaceList(a) => {
+            let workspace = api::require_workspace(state)?;
+            let collection = format!("workspaces/{workspace}/members/");
+            api::generic::list(
+                state,
+                &collection,
+                api::generic::ListOptions {
+                    all: a.all,
+                    fields: a.fields,
+                    expand: a.expand,
+                    json: a.json,
+                },
+            )
         }
     }
 }
