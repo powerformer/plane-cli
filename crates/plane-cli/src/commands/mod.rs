@@ -138,6 +138,11 @@ enum ApiSubcommand {
     Estimate(ApiEstimateCommand),
     #[command(name = "intake", about = "Intake work item CRUD in a project.")]
     Intake(ApiIntakeCommand),
+    #[command(
+        about = "Page (document) CRUD in a project.",
+        long_about = "Create, read, update, list, and delete Plane pages (documents) in a project.\n\nPage bodies are written as Markdown (converted to HTML) or raw HTML; Plane stores the body as description_html and the collaborative editor hydrates from it on first open."
+    )]
+    Page(ApiPageCommand),
     #[command(about = "Work item comments (CRUD).")]
     Comment(ApiCommentCommand),
     #[command(about = "Work item links (CRUD).")]
@@ -545,6 +550,116 @@ struct CrudDeleteArgs {
     id: String,
     #[arg(long, help = "Print the request without sending it.")]
     dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct ApiPageCommand {
+    #[command(subcommand)]
+    command: PageSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum PageSubcommand {
+    #[command(about = "List pages in a project.")]
+    List(CrudListArgs),
+    #[command(about = "Get a page by id (use --content for the body HTML).")]
+    Get(PageGetArgs),
+    #[command(about = "Create a page from Markdown or HTML.")]
+    Create(PageCreateArgs),
+    #[command(about = "Update a page's title, access, or body.")]
+    Update(PageUpdateArgs),
+    #[command(about = "Delete a page by id.")]
+    Delete(CrudDeleteArgs),
+}
+
+/// Body-source flags shared by `page create` and `page update`.
+#[derive(Debug, Args)]
+struct PageBodyArgs {
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Read the page body from a file. Markdown by default; .html files (or --format html) are sent verbatim."
+    )]
+    from_file: Option<PathBuf>,
+    #[arg(
+        long,
+        value_name = "TEXT",
+        conflicts_with = "from_file",
+        help = "Inline page body. Markdown by default; override with --format."
+    )]
+    body: Option<String>,
+    #[arg(
+        long,
+        value_parser = ["md", "markdown", "html"],
+        help = "Body format. Defaults to the --from-file extension, otherwise markdown."
+    )]
+    format: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct PageGetArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "ID", help = "Page id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print only the page body HTML.")]
+    content: bool,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated response fields to include."
+    )]
+    fields: Option<String>,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated relations to expand."
+    )]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct PageCreateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, help = "Page title (required).")]
+    name: String,
+    #[command(flatten)]
+    body: PageBodyArgs,
+    #[arg(long, value_parser = ["public", "private"], help = "Page access.")]
+    access: Option<String>,
+    #[arg(
+        long,
+        value_name = "JSON",
+        help = "Extra fields as a JSON object, merged under name/body."
+    )]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct PageUpdateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "ID", help = "Page id (UUID).")]
+    id: String,
+    #[arg(long, help = "New page title.")]
+    name: Option<String>,
+    #[command(flatten)]
+    body: PageBodyArgs,
+    #[arg(long, value_parser = ["public", "private"], help = "Change page access.")]
+    access: Option<String>,
+    #[arg(long, value_name = "JSON", help = "Fields to change as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -1095,6 +1210,7 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
         ApiSubcommand::Module(command) => execute_crud(state, "modules", command.command),
         ApiSubcommand::Estimate(command) => execute_crud(state, "estimates", command.command),
         ApiSubcommand::Intake(command) => execute_crud(state, "intake-issues", command.command),
+        ApiSubcommand::Page(command) => execute_page(state, command.command),
         ApiSubcommand::Comment(command) => execute_wi_sub(state, "comments", command.command),
         ApiSubcommand::Link(command) => execute_wi_sub(state, "links", command.command),
         ApiSubcommand::Relation(command) => execute_wi_sub(state, "relations", command.command),
@@ -1160,6 +1276,80 @@ fn execute_crud(
         ),
         CrudSubcommand::Delete(args) => {
             api::crud::delete(state, &args.project, segment, &args.id, args.dry_run)
+        }
+    }
+}
+
+fn parse_page_access(value: &Option<String>) -> Result<Option<api::page::Access>, String> {
+    match value.as_deref() {
+        None => Ok(None),
+        Some("public") => Ok(Some(api::page::Access::Public)),
+        Some("private") => Ok(Some(api::page::Access::Private)),
+        Some(other) => Err(format!(
+            "invalid access '{other}'; expected 'public' or 'private'"
+        )),
+    }
+}
+
+fn execute_page(state: &AppState, command: PageSubcommand) -> Result<String, String> {
+    match command {
+        PageSubcommand::List(args) => api::crud::list(
+            state,
+            &args.project,
+            "pages",
+            api::crud::ListOptions {
+                all: args.all,
+                fields: args.fields,
+                expand: args.expand,
+                json: args.json,
+            },
+        ),
+        PageSubcommand::Get(args) => api::page::get(
+            state,
+            &args.project,
+            &args.id,
+            api::page::GetOptions {
+                content: args.content,
+                fields: args.fields,
+                expand: args.expand,
+                json: args.json,
+            },
+        ),
+        PageSubcommand::Create(args) => api::page::create(
+            state,
+            &args.project,
+            api::page::CreateOptions {
+                name: args.name,
+                body: api::page::BodyArgs {
+                    from_file: args.body.from_file.as_deref(),
+                    body: args.body.body.as_deref(),
+                    format: args.body.format.as_deref(),
+                },
+                access: parse_page_access(&args.access)?,
+                data: args.data,
+                dry_run: args.dry_run,
+                json: args.json,
+            },
+        ),
+        PageSubcommand::Update(args) => api::page::update(
+            state,
+            &args.project,
+            &args.id,
+            api::page::UpdateOptions {
+                name: args.name,
+                body: api::page::BodyArgs {
+                    from_file: args.body.from_file.as_deref(),
+                    body: args.body.body.as_deref(),
+                    format: args.body.format.as_deref(),
+                },
+                access: parse_page_access(&args.access)?,
+                data: args.data,
+                dry_run: args.dry_run,
+                json: args.json,
+            },
+        ),
+        PageSubcommand::Delete(args) => {
+            api::crud::delete(state, &args.project, "pages", &args.id, args.dry_run)
         }
     }
 }

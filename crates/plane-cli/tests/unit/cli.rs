@@ -144,3 +144,86 @@ fn unknown_command_fails_with_usage_hint() {
     assert!(result.stderr.contains("unrecognized subcommand"));
     assert!(result.stderr.contains("Usage:"));
 }
+
+#[test]
+fn api_page_help_lists_crud_verbs() {
+    let result = execute(&state(), &args(&["api", "page", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("create"));
+    assert!(result.stdout.contains("update"));
+    assert!(result.stdout.contains("delete"));
+    assert!(result.stdout.contains("Markdown"));
+    assert!(result.stderr.is_empty());
+}
+
+fn state_with_workspace(slug: &str) -> AppState {
+    let config = PlaneConfig::resolve(
+        ConfigOverrides::default(),
+        ConfigEnv::new(
+            std::env::temp_dir(),
+            [
+                (
+                    "HOME".to_string(),
+                    std::env::temp_dir()
+                        .join("plane-cli-test-home")
+                        .to_string_lossy()
+                        .to_string(),
+                ),
+                ("PLANE_WORKSPACE_SLUG".to_string(), slug.to_string()),
+            ],
+        ),
+    )
+    .expect("test config");
+    AppState {
+        config,
+        version: "0.1.0-test",
+    }
+}
+
+#[test]
+fn api_page_create_dry_run_converts_markdown() {
+    // dry-run returns before any network call; it only needs a workspace.
+    let result = execute(
+        &state_with_workspace("acme"),
+        &args(&[
+            "api",
+            "page",
+            "create",
+            "--project",
+            "p1",
+            "--name",
+            "Doc",
+            "--body",
+            "# Title",
+            "--dry-run",
+        ]),
+    );
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("DRY RUN POST"));
+    assert!(result.stdout.contains("workspaces/acme/projects/p1/pages/"));
+    assert!(result.stdout.contains("<h1>Title</h1>"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn api_page_create_rejects_unknown_access() {
+    let result = execute(
+        &state(),
+        &args(&[
+            "api",
+            "page",
+            "create",
+            "--project",
+            "p1",
+            "--name",
+            "Doc",
+            "--access",
+            "secret",
+        ]),
+    );
+
+    assert_eq!(result.status, 2);
+    assert!(result.stderr.contains("--access"));
+}
