@@ -19,6 +19,9 @@ fn default_config_uses_home_plane_dir() {
         config.skills_state_path,
         home.join(".plane/state/skills.json")
     );
+    assert_eq!(config.api_base_url, None);
+    assert_eq!(config.api_key, None);
+    assert_eq!(config.workspace_slug, None);
 }
 
 #[test]
@@ -71,6 +74,9 @@ home = "file-home"
 state_dir = "file-state"
 skills_state_path = "file-state/skills.custom.json"
 releases_public_url = "https://mirror.example.test/"
+api_base_url = "https://plane.example.test/"
+api_key = "file-token"
+workspace_slug = "file-workspace"
 codex_home = "codex-config"
 "#,
     )
@@ -87,6 +93,9 @@ codex_home = "codex-config"
                 root.join("env-state/skills.json"),
             ),
             ("PLANE_RELEASES_PUBLIC_URL", root.join("not-a-url")),
+            ("PLANE_API_BASE_URL", root.join("env-plane.example.test")),
+            ("PLANE_API_KEY", root.join("env-token")),
+            ("PLANE_WORKSPACE_SLUG", root.join("env-workspace")),
             ("CODEX_HOME", root.join("env-codex")),
         ],
         ConfigOverrides {
@@ -103,6 +112,12 @@ codex_home = "codex-config"
         config_dir.join("file-state/skills.custom.json")
     );
     assert_eq!(config.releases_public_url, "https://mirror.example.test");
+    assert_eq!(
+        config.api_base_url.as_deref(),
+        Some("https://plane.example.test")
+    );
+    assert_eq!(config.api_key.as_deref(), Some("file-token"));
+    assert_eq!(config.workspace_slug.as_deref(), Some("file-workspace"));
     assert_eq!(config.codex_home, Some(config_dir.join("codex-config")));
     assert!(config.codex_home_explicit);
 }
@@ -141,12 +156,88 @@ skills_state_path = "file-state/skills.json"
             plane_home: Some(arg_home.clone()),
             state_dir: Some(arg_state.clone()),
             skills_state_path: Some(arg_skills.clone()),
+            ..ConfigOverrides::default()
         },
     );
 
     assert_eq!(config.plane_home, arg_home);
     assert_eq!(config.state_dir, arg_state);
     assert_eq!(config.skills_state_path, arg_skills);
+}
+
+#[test]
+fn args_override_config_and_env_api_values() {
+    let root = unique_test_dir();
+    let config_path = root.join("plane.toml");
+    fs::create_dir_all(&root).expect("test root");
+    fs::write(
+        &config_path,
+        r#"
+api_base_url = "https://file-plane.example.test"
+api_key = "file-token"
+workspace_slug = "file-workspace"
+"#,
+    )
+    .expect("write config");
+
+    let config = resolve(
+        &root,
+        [
+            ("HOME", root.join("home").into_os_string()),
+            (
+                "PLANE_API_BASE_URL",
+                "https://env-plane.example.test".into(),
+            ),
+            ("PLANE_API_KEY", "env-token".into()),
+            ("PLANE_WORKSPACE_SLUG", "env-workspace".into()),
+        ],
+        ConfigOverrides {
+            config_path: Some(config_path),
+            api_base_url: Some("https://arg-plane.example.test".to_string()),
+            api_key: Some("arg-token".to_string()),
+            workspace_slug: Some("arg-workspace".to_string()),
+            ..ConfigOverrides::default()
+        },
+    );
+
+    assert_eq!(
+        config.api_base_url.as_deref(),
+        Some("https://arg-plane.example.test")
+    );
+    assert_eq!(config.api_key.as_deref(), Some("arg-token"));
+    assert_eq!(config.workspace_slug.as_deref(), Some("arg-workspace"));
+}
+
+#[test]
+fn empty_config_api_values_fall_back_to_env() {
+    let root = unique_test_dir();
+    let config_path = root.join("plane.toml");
+    fs::create_dir_all(&root).expect("test root");
+    fs::write(
+        &config_path,
+        r#"
+api_base_url = ""
+api_key = "   "
+workspace_slug = ""
+"#,
+    )
+    .expect("write config");
+
+    let config = resolve(
+        &root,
+        [
+            ("HOME", root.join("home").into_os_string()),
+            ("PLANE_API_KEY", "env-token".into()),
+        ],
+        ConfigOverrides {
+            config_path: Some(config_path),
+            ..ConfigOverrides::default()
+        },
+    );
+
+    assert_eq!(config.api_base_url, None);
+    assert_eq!(config.api_key.as_deref(), Some("env-token"));
+    assert_eq!(config.workspace_slug, None);
 }
 
 #[test]

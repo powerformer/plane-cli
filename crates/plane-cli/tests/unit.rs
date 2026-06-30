@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+#[path = "../src/api.rs"]
+mod api;
 #[path = "../src/app.rs"]
 mod app;
 #[path = "../src/cli.rs"]

@@ -67,9 +67,10 @@ try {
     New-Item -ItemType Directory -Force -Path $env:PLANE_INSTALL_ROOT, $env:PLANE_LOCAL_BIN_DIR | Out-Null
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $skillPath) | Out-Null
     & (Join-Path $root 'manage.ps1') install --channel $channel --version $version --retain=false
-    & (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe') --version
-    & (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe') help
-    & (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe') skill install --path $skillPath --channel $channel --version $version
+    $plane = Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.cmd'
+    & $plane --version
+    & $plane help
+    & $plane skill install --path $skillPath --channel $channel --version $version
     if (!(Test-Path (Join-Path $skillPath 'SKILL.md'))) {
         throw "skill install missing $(Join-Path $skillPath 'SKILL.md')"
     }
@@ -77,7 +78,7 @@ try {
     if (!(Test-Path (Join-Path $skillPath 'SKILL.md'))) {
         throw "skill upgrade missing $(Join-Path $skillPath 'SKILL.md')"
     }
-    & (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe') skill uninstall
+    & $plane skill uninstall
     if (Test-Path $skillPath) {
         throw "skill uninstall left $skillPath"
     }
@@ -87,12 +88,13 @@ try {
     }
 
     if ($env:SMOKE_LATEST -eq '1') {
-        Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe')
+        Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.cmd')
         $env:PLANE_INSTALL_ROOT = Join-Path $tmpdir 'latest-smoke'
         $env:PLANE_HOME = $env:PLANE_INSTALL_ROOT
         & (Join-Path $root 'manage.ps1') install --channel $channel --retain=false
-        & (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe') --version
-        & (Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.exe') help
+        $plane = Join-Path $env:PLANE_LOCAL_BIN_DIR 'plane.cmd'
+        & $plane --version
+        & $plane help
         & (Join-Path $root 'manage.ps1') uninstall --install-root $env:PLANE_INSTALL_ROOT
         if (Test-Path $env:PLANE_INSTALL_ROOT) {
             throw "full uninstall left $env:PLANE_INSTALL_ROOT"

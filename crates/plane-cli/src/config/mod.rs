@@ -2,13 +2,13 @@ use serde::Deserialize;
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
-    fs,
+    fmt, fs,
     path::{Component, Path, PathBuf},
 };
 
 const DEFAULT_RELEASES_PUBLIC_URL: &str = "https://releases.plane.powerformer.net";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PlaneConfig {
     pub workspace_root: PathBuf,
     pub config_path: PathBuf,
@@ -16,6 +16,9 @@ pub struct PlaneConfig {
     pub state_dir: PathBuf,
     pub skills_state_path: PathBuf,
     pub releases_public_url: String,
+    pub api_base_url: Option<String>,
+    pub api_key: Option<String>,
+    pub workspace_slug: Option<String>,
     pub user_home: Option<PathBuf>,
     pub codex_home: Option<PathBuf>,
     pub codex_home_explicit: bool,
@@ -27,6 +30,30 @@ pub struct ConfigOverrides {
     pub plane_home: Option<PathBuf>,
     pub state_dir: Option<PathBuf>,
     pub skills_state_path: Option<PathBuf>,
+    pub api_base_url: Option<String>,
+    pub api_key: Option<String>,
+    pub workspace_slug: Option<String>,
+}
+
+impl fmt::Debug for PlaneConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let api_key = self.api_key.as_ref().map(|_| "<redacted>");
+        formatter
+            .debug_struct("PlaneConfig")
+            .field("workspace_root", &self.workspace_root)
+            .field("config_path", &self.config_path)
+            .field("plane_home", &self.plane_home)
+            .field("state_dir", &self.state_dir)
+            .field("skills_state_path", &self.skills_state_path)
+            .field("releases_public_url", &self.releases_public_url)
+            .field("api_base_url", &self.api_base_url)
+            .field("api_key", &api_key)
+            .field("workspace_slug", &self.workspace_slug)
+            .field("user_home", &self.user_home)
+            .field("codex_home", &self.codex_home)
+            .field("codex_home_explicit", &self.codex_home_explicit)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -152,6 +179,40 @@ impl PlaneConfig {
             return Err("releases_public_url cannot be empty".to_string());
         }
 
+        let api_base_url = overrides
+            .api_base_url
+            .as_deref()
+            .and_then(non_empty_string)
+            .or_else(|| file.api_base_url.as_deref().and_then(non_empty_string))
+            .or_else(|| {
+                env.var_os("PLANE_API_BASE_URL")
+                    .map(os_to_string)
+                    .as_deref()
+                    .and_then(non_empty_string)
+            });
+        let api_key = overrides
+            .api_key
+            .as_deref()
+            .and_then(non_empty_string)
+            .or_else(|| file.api_key.as_deref().and_then(non_empty_string))
+            .or_else(|| {
+                env.var_os("PLANE_API_KEY")
+                    .map(os_to_string)
+                    .as_deref()
+                    .and_then(non_empty_string)
+            });
+        let workspace_slug = overrides
+            .workspace_slug
+            .as_deref()
+            .and_then(non_empty_string)
+            .or_else(|| file.workspace_slug.as_deref().and_then(non_empty_string))
+            .or_else(|| {
+                env.var_os("PLANE_WORKSPACE_SLUG")
+                    .map(os_to_string)
+                    .as_deref()
+                    .and_then(non_empty_string)
+            });
+
         let config_codex_home = file
             .codex_home
             .as_ref()
@@ -172,6 +233,9 @@ impl PlaneConfig {
             state_dir,
             skills_state_path,
             releases_public_url: releases_public_url.trim_end_matches('/').to_string(),
+            api_base_url,
+            api_key,
+            workspace_slug,
             user_home,
             codex_home,
             codex_home_explicit,
@@ -188,6 +252,11 @@ struct PlaneConfigFile {
     skills_state_path: Option<PathBuf>,
     #[serde(alias = "release_url")]
     releases_public_url: Option<String>,
+    #[serde(alias = "plane_url", alias = "server_url")]
+    api_base_url: Option<String>,
+    api_key: Option<String>,
+    #[serde(alias = "workspace")]
+    workspace_slug: Option<String>,
     codex_home: Option<PathBuf>,
 }
 
@@ -270,4 +339,13 @@ fn ensure_non_empty_path(name: &str, path: &Path) -> Result<(), String> {
 
 fn os_to_string(value: OsString) -> String {
     value.to_string_lossy().to_string()
+}
+
+fn non_empty_string(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.trim_end_matches('/').to_string())
+    }
 }

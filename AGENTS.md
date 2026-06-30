@@ -3,9 +3,10 @@
 `plane-cli` is the public Rust command line interface for Plane.
 
 The current product surface is intentionally minimal: the installable `plane`
-binary owns command dispatch, help/version output, and the app-state/config
-substrate that future commands will build on. It does not yet own Plane product
-workflows, service orchestration, remote API operations, or project mutations.
+binary owns command dispatch, help/version output, the app-state/config
+substrate, managed skill installation, and small read-only Plane API smoke
+checks. It does not yet own Plane product workflows, service orchestration, or
+project mutations.
 
 ## Directory Rules
 
@@ -26,6 +27,10 @@ workflows, service orchestration, remote API operations, or project mutations.
   exits cleanly only when the checkout is ready for development.
 - `manage.sh` and `manage.ps1` are the public install/uninstall entrypoints at
   the repository root.
+- `manage.sh path setup|clear` and `manage.ps1 path setup|clear` are the
+  explicit PATH profile mutation commands. Install and upgrade may create the
+  user command entry, but must only prompt for PATH setup when `plane` is not
+  already directly resolvable in the current shell.
 - Release and manager downloads use R2 metadata and artifacts as the source of
   truth.
 
@@ -156,8 +161,9 @@ approval path.
 
 ### Does `plane` Implement Plane Workflows Yet?
 
-No. The current CLI is a releaseable shell with help/version output and internal
-structure for future commands.
+Not beyond read-only API smoke checks. The current CLI is a releaseable shell
+with help/version output, managed skill installation, and internal structure for
+future commands.
 
 ### Where Do Installer Changes Go?
 

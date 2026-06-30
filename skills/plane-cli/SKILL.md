@@ -18,7 +18,7 @@ The CLI is the command truth source. Prefer running `plane --help`, `plane skill
 - `plane skill install`: install the `plane-cli` skill into detected agent skill directories.
 - `plane skill install --path <dir>`: install into an explicit final skill directory. The path must end with `plane-cli`.
 - `plane skill list`: list skill paths managed by Plane.
-- `plane skill upgrade`: upgrade all managed skill installations to the selected release.
+- `plane skill upgrade`: upgrade all managed skill installations to the selected published version.
 - `plane skill uninstall`: uninstall only paths recorded in Plane managed state.
 
 ## Managed State
@@ -28,7 +28,7 @@ Each installed skill directory also contains `metadata.json`.
 
 Do not delete or overwrite user-created skill directories unless they are recorded as Plane-managed paths and contain Plane-managed metadata.
 
-## Release Behavior
+## Version Selection
 
-By default, skill install and upgrade resolve artifacts from the Plane release URL.
-Use `--channel beta` for beta releases and `--version <version>` for a specific release.
+By default, skill install and upgrade use the stable published version.
+Use `--channel beta` to try the beta channel, or `--version <version>` to pin a specific published version.

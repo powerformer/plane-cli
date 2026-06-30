@@ -3,6 +3,11 @@ set -eu
 
 COMMAND=${1:-install}
 [ $# -gt 0 ] && shift || true
+PATH_COMMAND=
+if [ "$COMMAND" = path ]; then
+  PATH_COMMAND=${1:-help}
+  [ $# -gt 0 ] && shift || true
+fi
 
 CHANNEL=${PLANE_CHANNEL:-stable}
 VERSION=${PLANE_VERSION:-}
@@ -10,6 +15,8 @@ PUBLIC_URL=${PLANE_RELEASES_PUBLIC_URL:-https://releases.plane.powerformer.net}
 INSTALL_ROOT=${PLANE_INSTALL_ROOT:-"$HOME/.local/share/plane"}
 LOCAL_BIN_DIR=${PLANE_LOCAL_BIN_DIR:-"$HOME/.local/bin"}
 RETAIN=${PLANE_RETAIN:-}
+PATH_MARKER_START="# >>> plane-cli path >>>"
+PATH_MARKER_END="# <<< plane-cli path <<<"
 
 print_help() {
   cat <<'EOF'
@@ -19,6 +26,8 @@ Usage:
   manage.sh install [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
   manage.sh upgrade [--channel stable|beta] [--version vX.Y.Z] [--retain[=true|false]]
   manage.sh uninstall [--version vX.Y.Z]
+  manage.sh path setup
+  manage.sh path clear
 
 Environment:
   PLANE_RELEASES_PUBLIC_URL  # default: https://releases.plane.powerformer.net
@@ -27,6 +36,19 @@ Environment:
   PLANE_INSTALL_ROOT
   PLANE_LOCAL_BIN_DIR
   PLANE_RETAIN
+EOF
+}
+
+print_path_help() {
+  cat <<'EOF'
+plane manager path commands
+
+Usage:
+  manage.sh path setup [--bin-dir DIR]
+  manage.sh path clear
+
+`path setup` appends a managed PATH block to the detected shell rc file.
+`path clear` removes only the managed block marked by plane-cli comments.
 EOF
 }
 
@@ -93,7 +115,11 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     -h|--help|help)
-      print_help
+      if [ "$COMMAND" = path ]; then
+        print_path_help
+      else
+        print_help
+      fi
       exit 0
       ;;
     *)
@@ -117,6 +143,178 @@ normalize_bool() {
 
 normalize_version() {
   printf 'v%s' "$(printf '%s' "$1" | sed 's/^v//')"
+}
+
+path_contains_dir() {
+  dir="$1"
+  old_ifs=$IFS
+  IFS=:
+  for entry in $PATH; do
+    if [ "$entry" = "$dir" ]; then
+      IFS=$old_ifs
+      return 0
+    fi
+  done
+  IFS=$old_ifs
+  return 1
+}
+
+plane_command_resolves_to_local_bin() {
+  command_path=$(command -v plane 2>/dev/null || true)
+  [ "$command_path" = "$LOCAL_BIN_DIR/plane" ]
+}
+
+print_path_notice_if_needed() {
+  if path_contains_dir "$LOCAL_BIN_DIR" && plane_command_resolves_to_local_bin; then
+    return 0
+  fi
+  cat >&2 <<EOF
+plane: plane does not resolve to $LOCAL_BIN_DIR/plane in this shell.
+temporary: export PATH="$LOCAL_BIN_DIR:\$PATH"
+persist: sh manage.sh path setup
+EOF
+}
+
+shell_name() {
+  basename "${SHELL:-}" 2>/dev/null || printf '%s' ""
+}
+
+detected_shell_rc() {
+  shell=$(shell_name)
+  case "$shell" in
+    zsh) printf '%s\n' "$HOME/.zshrc" ;;
+    bash)
+      case "$(uname -s)" in
+        Darwin) printf '%s\n' "$HOME/.bash_profile" ;;
+        *) printf '%s\n' "$HOME/.bashrc" ;;
+      esac
+      ;;
+    fish) printf '%s\n' "$HOME/.config/fish/config.fish" ;;
+    *) return 1 ;;
+  esac
+}
+
+path_line_for_shell() {
+  shell=$(shell_name)
+  if [ "$shell" = fish ]; then
+    if [ "$LOCAL_BIN_DIR" = "$HOME/.local/bin" ]; then
+      printf '%s\n' 'fish_add_path "$HOME/.local/bin"'
+    else
+      printf 'fish_add_path "%s"\n' "$LOCAL_BIN_DIR"
+    fi
+    return
+  fi
+  if [ "$LOCAL_BIN_DIR" = "$HOME/.local/bin" ]; then
+    printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"'
+  else
+    printf 'export PATH="%s:$PATH"\n' "$LOCAL_BIN_DIR"
+  fi
+}
+
+remove_path_block_file() {
+  file="$1"
+  [ -f "$file" ] || return 1
+  if ! grep -F "$PATH_MARKER_START" "$file" >/dev/null 2>&1; then
+    return 1
+  fi
+  if ! grep -F "$PATH_MARKER_END" "$file" >/dev/null 2>&1; then
+    return 1
+  fi
+  tmp="${file}.plane-path.$$"
+  awk -v start="$PATH_MARKER_START" -v end="$PATH_MARKER_END" '
+    index($0, start) { skip = 1; changed = 1; next }
+    index($0, end) { skip = 0; next }
+    !skip { print }
+    END { if (!changed) exit 2 }
+  ' "$file" > "$tmp" || {
+    status=$?
+    rm -f "$tmp"
+    return "$status"
+  }
+  mv "$tmp" "$file"
+  return 0
+}
+
+path_block_exists() {
+  for file in \
+    "$HOME/.zshrc" \
+    "$HOME/.bashrc" \
+    "$HOME/.bash_profile" \
+    "$HOME/.profile" \
+    "$HOME/.config/fish/config.fish"; do
+    [ -f "$file" ] || continue
+    if grep -F "$PATH_MARKER_START" "$file" >/dev/null 2>&1 &&
+      grep -F "$PATH_MARKER_END" "$file" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+setup_path() {
+  case "$PATH_COMMAND" in
+    setup) ;;
+    -h|--help|help|"")
+      print_path_help
+      return 0
+      ;;
+    *)
+      echo "unknown path command: $PATH_COMMAND" >&2
+      return 1
+      ;;
+  esac
+
+  rc=$(detected_shell_rc) || {
+    cat >&2 <<EOF
+plane: could not detect a supported shell rc file from SHELL=${SHELL:-}.
+manual: export PATH="$LOCAL_BIN_DIR:\$PATH"
+EOF
+    return 1
+  }
+  rc_dir=$(dirname "$rc")
+  mkdir -p "$rc_dir"
+  [ -f "$rc" ] || : > "$rc"
+  if remove_path_block_file "$rc"; then
+    action=updated
+  else
+    action=configured
+  fi
+  {
+    printf '\n%s\n' "$PATH_MARKER_START"
+    path_line_for_shell
+    printf '%s\n' "$PATH_MARKER_END"
+  } >> "$rc"
+  printf 'plane: %s PATH in %s\n' "$action" "$rc"
+}
+
+clear_path() {
+  case "$PATH_COMMAND" in
+    clear) ;;
+    -h|--help|help|"")
+      print_path_help
+      return 0
+      ;;
+    *)
+      echo "unknown path command: $PATH_COMMAND" >&2
+      return 1
+      ;;
+  esac
+
+  removed=false
+  for file in \
+    "$HOME/.zshrc" \
+    "$HOME/.bashrc" \
+    "$HOME/.bash_profile" \
+    "$HOME/.profile" \
+    "$HOME/.config/fish/config.fish"; do
+    if remove_path_block_file "$file"; then
+      printf 'plane: removed PATH block from %s\n' "$file"
+      removed=true
+    fi
+  done
+  if [ "$removed" = false ]; then
+    printf 'plane: no managed PATH block found\n'
+  fi
 }
 
 platform_archive() {
@@ -200,6 +398,7 @@ install_plane() {
   rm -f "$link"
   ln -s "$INSTALL_ROOT/$VERSION/plane" "$link"
   "$link" --version
+  print_path_notice_if_needed
 
   if [ "$retain" = false ]; then
     printf '%s\n' "$old" | while IFS= read -r old_version; do
@@ -210,6 +409,18 @@ install_plane() {
   fi
 
   printf 'installed plane to %s\n' "$link"
+}
+
+remove_plane_link_if_managed() {
+  bin_path="$LOCAL_BIN_DIR/plane"
+  [ -L "$bin_path" ] || return 0
+  link_target=$(readlink "$bin_path" || true)
+  case "$link_target" in
+    "$INSTALL_ROOT"/*)
+      rm -f "$bin_path"
+      printf 'removed %s\n' "$bin_path"
+      ;;
+  esac
 }
 
 remove_empty_dir() {
@@ -234,13 +445,19 @@ uninstall_plane() {
     rm -rf "$INSTALL_ROOT/$VERSION"
     remove_empty_dir "$INSTALL_ROOT"
     printf 'removed plane %s from %s\n' "$VERSION" "$INSTALL_ROOT"
+    if path_block_exists; then
+      printf 'plane: run `sh manage.sh path clear` to remove the managed PATH block\n'
+    fi
     return
   fi
 
-  rm -f "$bin_path"
+  remove_plane_link_if_managed
   rm -rf "$INSTALL_ROOT"
   remove_empty_dir "$LOCAL_BIN_DIR"
   printf 'removed plane from %s and %s\n' "$INSTALL_ROOT" "$bin_path"
+  if path_block_exists; then
+    printf 'plane: run `sh manage.sh path clear` to remove the managed PATH block\n'
+  fi
 }
 
 upgrade_plane() {
@@ -255,6 +472,17 @@ case "$COMMAND" in
   install) install_plane ;;
   upgrade) upgrade_plane ;;
   uninstall) uninstall_plane ;;
+  path)
+    case "$PATH_COMMAND" in
+      setup) setup_path ;;
+      clear) clear_path ;;
+      -h|--help|help|"") print_path_help ;;
+      *)
+        echo "unknown path command: $PATH_COMMAND" >&2
+        exit 1
+        ;;
+    esac
+    ;;
   *)
     echo "unknown command: $COMMAND" >&2
     exit 1

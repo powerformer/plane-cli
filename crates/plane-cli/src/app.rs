@@ -1,4 +1,5 @@
 use crate::config::{ConfigOverrides, PlaneConfig};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
@@ -11,6 +12,19 @@ impl AppState {
         Ok(Self {
             config: PlaneConfig::load(overrides)?,
             version: build_version(),
+        })
+    }
+
+    #[allow(dead_code)]
+    pub fn load_from_dev() -> Result<Self, String> {
+        let config_path = std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(".local")
+            .join(".plane")
+            .join("plane.toml");
+        Self::from_env(ConfigOverrides {
+            config_path: Some(config_path),
+            ..ConfigOverrides::default()
         })
     }
 }

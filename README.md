@@ -43,6 +43,27 @@ Upgrade the binary and any already-managed skill installations:
 curl -fsSL https://releases.plane.powerformer.net/manage.sh | sh -s -- upgrade
 ```
 
+The manager installs a user command entry at `~/.local/bin/plane` on Unix and
+`%USERPROFILE%\.local\bin\plane.cmd` on Windows. If that directory is already on
+`PATH`, no extra setup is needed. To persist PATH setup explicitly:
+
+```bash
+curl -fsSL https://releases.plane.powerformer.net/manage.sh | sh -s -- path setup
+curl -fsSL https://releases.plane.powerformer.net/manage.sh | sh -s -- path clear
+```
+
+PowerShell:
+
+```powershell
+$manager = Join-Path $env:TEMP "plane-manage.ps1"
+iwr https://releases.plane.powerformer.net/manage.ps1 -OutFile $manager
+pwsh -File $manager path setup
+pwsh -File $manager path clear
+```
+
+`path clear` removes only the fixed `plane-cli path` marker block written by
+`path setup`; it does not modify user-authored PATH lines.
+
 ## Usage
 
 ```bash
@@ -63,6 +84,29 @@ plane skill uninstall
 `arg > config file > env > default`; managed skill state defaults to
 `~/.plane/state/skills.json`. `plane skill uninstall` only removes paths recorded
 there and confirmed by the installed skill's `metadata.json`.
+
+Plane API smoke test:
+
+```bash
+plane --config .local/.plane/plane.toml api me
+plane --config .local/.plane/plane.toml api me --json
+```
+
+Repo-local development can use this private config shape:
+
+```toml
+home = "."
+state_dir = "state"
+skills_state_path = "state/skills.json"
+
+api_base_url = "https://plane.example.com"
+api_key = "plane-api-token"
+workspace_slug = "workspace-slug"
+```
+
+Relative paths in a config file resolve from the directory containing that file.
+For `.local/.plane/plane.toml`, the example above keeps managed state under
+`.local/.plane/state/`.
 
 ## Development
 
