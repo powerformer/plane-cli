@@ -787,7 +787,7 @@ fn render_targets(verb: &str, targets: &[InstallTarget]) -> String {
 
 /// Default channel for a build version: `-beta` releases use beta, everything
 /// else (including dev builds) uses stable.
-fn infer_channel(version: &str) -> String {
+pub(crate) fn infer_channel(version: &str) -> String {
     if version.contains("-beta") {
         "beta".to_string()
     } else {

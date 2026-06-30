@@ -94,6 +94,11 @@ enum PlaneCommand {
     Api(ApiCommand),
     #[command(about = "Install, upgrade, list, and uninstall Plane agent skills.")]
     Skill(SkillCommand),
+    #[command(
+        about = "Check for a newer plane and print the upgrade command.",
+        long_about = "Check the release channel for a newer plane binary and print the manager command to upgrade. This only reports; it does not download or replace the binary (the manager does that)."
+    )]
+    Upgrade,
 }
 
 #[derive(Debug, Args)]
@@ -892,13 +897,16 @@ pub fn execute_from_env(args: &[String]) -> CommandResult {
     match parsed.command {
         None => CommandResult::ok(help_text(version)),
         Some(PlaneCommand::Version) => CommandResult::ok(format!("plane {version}\n")),
-        Some(command @ (PlaneCommand::Api(_) | PlaneCommand::Skill(_))) => {
+        Some(command @ (PlaneCommand::Api(_) | PlaneCommand::Skill(_) | PlaneCommand::Upgrade)) => {
             let overrides = config_overrides_from_matches(&matches);
             let state = match AppState::from_env(overrides) {
                 Ok(state) => state,
                 Err(error) => return CommandResult::err(1, format!("plane: {error}\n")),
             };
-            dispatch(
+            // `upgrade` already reports the latest version; skip the trailing
+            // notice for it so we do not check twice.
+            let run_passive = !matches!(command, PlaneCommand::Upgrade);
+            let mut result = dispatch(
                 &state,
                 PlaneCli {
                     command: Some(command),
@@ -911,7 +919,13 @@ pub fn execute_from_env(args: &[String]) -> CommandResult {
                     workspace_slug: None,
                     verbose: parsed.verbose,
                 },
-            )
+            );
+            if run_passive {
+                if let Some(notice) = crate::core::update::passive_notice(&state) {
+                    result.stderr.push_str(&notice);
+                }
+            }
+            result
         }
     }
 }
@@ -942,6 +956,14 @@ fn dispatch(state: &AppState, parsed: PlaneCli) -> CommandResult {
         Some(PlaneCommand::Version) => CommandResult::ok(format!("plane {}\n", state.version)),
         Some(PlaneCommand::Api(command)) => execute_api(state, command),
         Some(PlaneCommand::Skill(command)) => execute_skill(state, command),
+        Some(PlaneCommand::Upgrade) => execute_upgrade(state),
+    }
+}
+
+fn execute_upgrade(state: &AppState) -> CommandResult {
+    match crate::core::update::run_check(state) {
+        Ok(stdout) => CommandResult::ok(stdout),
+        Err(error) => CommandResult::err(1, format!("plane: {error}\n")),
     }
 }
 

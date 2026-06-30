@@ -5,3 +5,4 @@ pub mod logger;
 pub mod model;
 pub mod request;
 pub mod skill;
+pub mod update;

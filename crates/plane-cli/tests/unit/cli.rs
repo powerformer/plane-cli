@@ -115,6 +115,16 @@ fn api_me_requires_api_key() {
 }
 
 #[test]
+fn upgrade_help_explains_report_only() {
+    let result = execute(&state(), &args(&["upgrade", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("upgrade"));
+    assert!(result.stdout.contains("does not download or replace"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
 fn skill_install_help_explains_path() {
     let result = execute(&state(), &args(&["skill", "install", "--help"]));
 
