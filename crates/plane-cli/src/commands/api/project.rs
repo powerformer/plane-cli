@@ -89,6 +89,88 @@ pub fn create(state: &AppState, options: CreateOptions) -> Result<String, String
     Ok(format!("created {}", render_one(&project)))
 }
 
+pub struct UpdateOptions {
+    pub id: String,
+    pub name: Option<String>,
+    pub data: Option<String>,
+    pub dry_run: bool,
+    pub json: bool,
+}
+
+pub fn update(state: &AppState, options: UpdateOptions) -> Result<String, String> {
+    let workspace = require_workspace(state)?;
+    let mut body = parse_data_object(&options.data)?;
+    if let Some(name) = &options.name {
+        body.as_object_mut()
+            .expect("data is an object")
+            .insert("name".to_string(), Value::String(name.clone()));
+    }
+    let path = format!("workspaces/{workspace}/projects/{}/", options.id);
+    if options.dry_run {
+        return Ok(format!(
+            "DRY RUN PATCH /api/v1/{path}\n{}\n",
+            pretty_json(&body)?
+        ));
+    }
+    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let value = client
+        .patch(&path, &body)
+        .map_err(|error| error.to_string())?;
+    if options.json {
+        return render_json(&value);
+    }
+    let project: Project = serde_json::from_value(value)
+        .map_err(|error| format!("failed to parse project: {error}"))?;
+    Ok(format!("updated {}", render_one(&project)))
+}
+
+pub fn delete(state: &AppState, id: &str, dry_run: bool) -> Result<String, String> {
+    let workspace = require_workspace(state)?;
+    let path = format!("workspaces/{workspace}/projects/{id}/");
+    if dry_run {
+        return Ok(format!("DRY RUN DELETE /api/v1/{path}\n"));
+    }
+    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    client.delete(&path).map_err(|error| error.to_string())?;
+    Ok(format!("deleted project {id}\n"))
+}
+
+pub fn archive(state: &AppState, id: &str, dry_run: bool) -> Result<String, String> {
+    let workspace = require_workspace(state)?;
+    let path = format!("workspaces/{workspace}/projects/{id}/archive/");
+    if dry_run {
+        return Ok(format!("DRY RUN POST /api/v1/{path}\n"));
+    }
+    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    client
+        .post(&path, &serde_json::json!({}))
+        .map_err(|error| error.to_string())?;
+    Ok(format!("archived project {id}\n"))
+}
+
+pub fn unarchive(state: &AppState, id: &str, dry_run: bool) -> Result<String, String> {
+    let workspace = require_workspace(state)?;
+    let path = format!("workspaces/{workspace}/projects/{id}/archive/");
+    if dry_run {
+        return Ok(format!("DRY RUN DELETE /api/v1/{path}\n"));
+    }
+    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    client.delete(&path).map_err(|error| error.to_string())?;
+    Ok(format!("unarchived project {id}\n"))
+}
+
+pub fn summary(state: &AppState, id: &str) -> Result<String, String> {
+    let workspace = require_workspace(state)?;
+    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let value = client
+        .get(
+            &format!("workspaces/{workspace}/projects/{id}/summary/"),
+            &[],
+        )
+        .map_err(|error| error.to_string())?;
+    render_json(&value)
+}
+
 fn render_list(projects: &[Project]) -> String {
     if projects.is_empty() {
         return "no projects\n".to_string();

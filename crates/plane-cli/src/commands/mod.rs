@@ -155,6 +155,16 @@ enum ProjectSubcommand {
     Get(ProjectGetCommand),
     #[command(about = "Create a project in the workspace.")]
     Create(ProjectCreateCommand),
+    #[command(about = "Update a project by id.")]
+    Update(ProjectUpdateCommand),
+    #[command(about = "Delete a project by id.")]
+    Delete(ProjectDeleteCommand),
+    #[command(about = "Archive a project by id.")]
+    Archive(ProjectArchiveCommand),
+    #[command(about = "Unarchive a project by id.")]
+    Unarchive(ProjectUnarchiveCommand),
+    #[command(about = "Get a project summary.")]
+    Summary(ProjectSummaryCommand),
 }
 
 #[derive(Debug, Args)]
@@ -209,6 +219,50 @@ struct ProjectCreateCommand {
     dry_run: bool,
     #[arg(long, help = "Print the raw JSON response.")]
     json: bool,
+}
+
+#[derive(Debug, Args)]
+struct ProjectUpdateCommand {
+    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    id: String,
+    #[arg(long, help = "New project name.")]
+    name: Option<String>,
+    #[arg(long, value_name = "JSON", help = "Fields to change as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct ProjectDeleteCommand {
+    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct ProjectArchiveCommand {
+    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct ProjectUnarchiveCommand {
+    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct ProjectSummaryCommand {
+    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    id: String,
 }
 
 #[derive(Debug, Args)]
@@ -699,6 +753,24 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
                     json: args.json,
                 },
             ),
+            ProjectSubcommand::Update(args) => api::project::update(
+                state,
+                api::project::UpdateOptions {
+                    id: args.id,
+                    name: args.name,
+                    data: args.data,
+                    dry_run: args.dry_run,
+                    json: args.json,
+                },
+            ),
+            ProjectSubcommand::Delete(args) => api::project::delete(state, &args.id, args.dry_run),
+            ProjectSubcommand::Archive(args) => {
+                api::project::archive(state, &args.id, args.dry_run)
+            }
+            ProjectSubcommand::Unarchive(args) => {
+                api::project::unarchive(state, &args.id, args.dry_run)
+            }
+            ProjectSubcommand::Summary(args) => api::project::summary(state, &args.id),
         },
         ApiSubcommand::WorkItem(command) => match command.command {
             WorkItemSubcommand::List(args) => api::work_item::list(
