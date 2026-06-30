@@ -176,13 +176,20 @@ pub fn install(state: &AppState, options: SkillInstallOptions) -> Result<String,
         ));
     }
     let archive = download_skill_archive(release)?;
-    let mut installed = Vec::new();
-    for target in targets {
-        install_one(state, &archive, &target, &mut skill_state, options.force)?;
-        installed.push(target);
+    let (installed, skipped) =
+        install_each(state, &archive, targets, &mut skill_state, options.force);
+    if installed.is_empty() {
+        return Err(skip_summary(&skipped));
     }
+    // Persist the successes even when some targets were skipped, so a partial
+    // run still records what it installed.
     write_state(&state.config.skills_state_path, &skill_state)?;
-    Ok(render_installed("installed", &installed, &archive.release))
+    Ok(render_installed(
+        "installed",
+        &installed,
+        &archive.release,
+        &skipped,
+    ))
 }
 
 pub fn upgrade(state: &AppState, options: SkillUpgradeOptions) -> Result<String, String> {
@@ -228,11 +235,17 @@ pub fn upgrade(state: &AppState, options: SkillUpgradeOptions) -> Result<String,
         ));
     }
     let archive = download_skill_archive(release)?;
-    for target in &targets {
-        install_one(state, &archive, target, &mut skill_state, true)?;
+    let (upgraded, skipped) = install_each(state, &archive, targets, &mut skill_state, true);
+    if upgraded.is_empty() {
+        return Err(skip_summary(&skipped));
     }
     write_state(&state.config.skills_state_path, &skill_state)?;
-    Ok(render_installed("upgraded", &targets, &archive.release))
+    Ok(render_installed(
+        "upgraded",
+        &upgraded,
+        &archive.release,
+        &skipped,
+    ))
 }
 
 pub fn uninstall(state: &AppState, options: SkillUninstallOptions) -> Result<String, String> {
@@ -536,6 +549,42 @@ fn download_url(url: &str) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+/// Install each target, collecting successes and skips instead of aborting on
+/// the first failure. A single unmanaged or unwritable path no longer prevents
+/// the other targets from installing — or their state from being recorded.
+fn install_each(
+    state: &AppState,
+    archive: &SkillArchive,
+    targets: Vec<InstallTarget>,
+    skill_state: &mut SkillState,
+    force: bool,
+) -> (Vec<InstallTarget>, Vec<(InstallTarget, String)>) {
+    let mut installed = Vec::new();
+    let mut skipped = Vec::new();
+    for target in targets {
+        match install_one(state, archive, &target, skill_state, force) {
+            Ok(()) => installed.push(target),
+            Err(error) => {
+                warn!(path = %target.path.display(), error = %error, "skipping skill target");
+                skipped.push((target, error));
+            }
+        }
+    }
+    (installed, skipped)
+}
+
+/// Join skip reasons for the error shown when no target could be installed.
+fn skip_summary(skipped: &[(InstallTarget, String)]) -> String {
+    if skipped.is_empty() {
+        return "no skill targets were installed".to_string();
+    }
+    skipped
+        .iter()
+        .map(|(target, error)| format!("{}: {error}", target.path.display()))
+        .collect::<Vec<_>>()
+        .join("; ")
+}
+
 fn install_one(
     state: &AppState,
     archive: &SkillArchive,
@@ -549,12 +598,10 @@ fn install_one(
         .iter()
         .position(|item| paths_equal(&item.path, &target.path));
     if target.path.exists() {
-        if existing_index.is_none() {
-            return Err(format!(
-                "refusing to overwrite unmanaged skill path: {}",
-                target.path.display()
-            ));
-        }
+        // Managed-ness is judged by the directory's own metadata marker, not the
+        // registry: a path Plane wrote stays overwritable (and is re-registered
+        // below) even if the registry lost its entry — e.g. after an earlier
+        // install aborted before writing state, or a manager upgrade.
         ensure_existing_path_is_managed(&target.path)?;
         if !force {
             return Err(format!(
@@ -761,11 +808,19 @@ fn render_installed(
     action: &str,
     targets: &[InstallTarget],
     release: &ResolvedSkillRelease,
+    skipped: &[(InstallTarget, String)],
 ) -> String {
     let mut output = format!("{action} plane-cli skill {}\n", release.release_version);
     for target in targets {
         output.push_str(&format!(
             "- {} at {}\n",
+            target.agent,
+            target.path.display()
+        ));
+    }
+    for (target, reason) in skipped {
+        output.push_str(&format!(
+            "- skipped {} at {}: {reason}\n",
             target.agent,
             target.path.display()
         ));
@@ -895,6 +950,56 @@ mod tests {
                 && item.skills_dir == codex_home.join("skills")
                 && item.allow_missing_presence
         }));
+    }
+
+    fn write_test_metadata(dir: &Path, managed_by: &str) {
+        fs::create_dir_all(dir).expect("create skill dir");
+        let metadata = InstalledSkillMetadata {
+            schema_version: SKILL_METADATA_SCHEMA_VERSION,
+            name: SKILL_NAME.to_string(),
+            managed_by: managed_by.to_string(),
+            binary_version: "v0.0.0-test".to_string(),
+            skill_version: "v0.0.0-test".to_string(),
+            source: InstalledSkillSource {
+                release_url: "https://example.test".to_string(),
+                channel: "beta".to_string(),
+                artifact: "plane-cli.tar.gz".to_string(),
+                sha256: "deadbeef".to_string(),
+            },
+            managed: InstalledSkillManaged {
+                agent: "claude-code".to_string(),
+                install_path: dir.to_path_buf(),
+                installed_at: "now".to_string(),
+            },
+        };
+        fs::write(
+            dir.join("metadata.json"),
+            serde_json::to_vec(&metadata).expect("serialize metadata"),
+        )
+        .expect("write metadata");
+    }
+
+    #[test]
+    fn managed_check_uses_metadata_marker_not_registry() {
+        let root = unique_test_dir();
+
+        // A directory Plane wrote is overwritable on its own metadata marker,
+        // independent of any registry entry.
+        let managed = root.join("managed");
+        write_test_metadata(&managed, MANAGED_BY);
+        assert!(ensure_existing_path_is_managed(&managed).is_ok());
+
+        // A directory owned by something else must never be clobbered.
+        let foreign = root.join("foreign");
+        write_test_metadata(&foreign, "someone-else");
+        assert!(ensure_existing_path_is_managed(&foreign).is_err());
+
+        // A directory without metadata is treated as unmanaged.
+        let bare = root.join("bare");
+        fs::create_dir_all(&bare).expect("create bare dir");
+        assert!(ensure_existing_path_is_managed(&bare).is_err());
+
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
