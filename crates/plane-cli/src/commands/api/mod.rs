@@ -1,3 +1,4 @@
+pub mod crud;
 pub mod me;
 pub mod project;
 pub mod request;

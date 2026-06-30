@@ -121,6 +121,18 @@ enum ApiSubcommand {
         long_about = "Passthrough to an arbitrary /api/v1-relative path, for endpoints the typed commands do not cover yet. Supports GET and POST."
     )]
     Request(ApiRequestCommand),
+    #[command(about = "State CRUD in a project.")]
+    State(ApiStateCommand),
+    #[command(about = "Label CRUD in a project.")]
+    Label(ApiLabelCommand),
+    #[command(about = "Cycle CRUD in a project.")]
+    Cycle(ApiCycleCommand),
+    #[command(about = "Module CRUD in a project.")]
+    Module(ApiModuleCommand),
+    #[command(about = "Estimate CRUD in a project.")]
+    Estimate(ApiEstimateCommand),
+    #[command(name = "intake", about = "Intake work item CRUD in a project.")]
+    Intake(ApiIntakeCommand),
 }
 
 #[derive(Debug, Args)]
@@ -318,6 +330,144 @@ struct ApiRequestCommand {
     path: String,
     #[arg(long, value_name = "JSON", help = "Request body JSON for POST.")]
     data: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct ApiStateCommand {
+    #[command(subcommand)]
+    command: CrudSubcommand,
+}
+
+#[derive(Debug, Args)]
+struct ApiLabelCommand {
+    #[command(subcommand)]
+    command: CrudSubcommand,
+}
+
+#[derive(Debug, Args)]
+struct ApiCycleCommand {
+    #[command(subcommand)]
+    command: CrudSubcommand,
+}
+
+#[derive(Debug, Args)]
+struct ApiModuleCommand {
+    #[command(subcommand)]
+    command: CrudSubcommand,
+}
+
+#[derive(Debug, Args)]
+struct ApiEstimateCommand {
+    #[command(subcommand)]
+    command: CrudSubcommand,
+}
+
+#[derive(Debug, Args)]
+struct ApiIntakeCommand {
+    #[command(subcommand)]
+    command: CrudSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum CrudSubcommand {
+    #[command(about = "List resources in a project.")]
+    List(CrudListArgs),
+    #[command(about = "Get a resource by id.")]
+    Get(CrudGetArgs),
+    #[command(about = "Create a resource in a project.")]
+    Create(CrudCreateArgs),
+    #[command(about = "Update a resource by id.")]
+    Update(CrudUpdateArgs),
+    #[command(about = "Delete a resource by id.")]
+    Delete(CrudDeleteArgs),
+}
+
+#[derive(Debug, Args)]
+struct CrudListArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, help = "Follow cursor pages and list every result.")]
+    all: bool,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated response fields to include."
+    )]
+    fields: Option<String>,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated relations to expand."
+    )]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct CrudGetArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "ID", help = "Resource id (UUID).")]
+    id: String,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated response fields to include."
+    )]
+    fields: Option<String>,
+    #[arg(
+        long,
+        value_name = "CSV",
+        help = "Comma-separated relations to expand."
+    )]
+    expand: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct CrudCreateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, help = "Resource name (required).")]
+    name: String,
+    #[arg(
+        long,
+        value_name = "JSON",
+        help = "Extra fields as a JSON object, merged under name."
+    )]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct CrudUpdateArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "ID", help = "Resource id (UUID).")]
+    id: String,
+    #[arg(long, help = "New name.")]
+    name: Option<String>,
+    #[arg(long, value_name = "JSON", help = "Fields to change as a JSON object.")]
+    data: Option<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct CrudDeleteArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(value_name = "ID", help = "Resource id (UUID).")]
+    id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
 }
 
 #[derive(Debug, Args)]
@@ -609,10 +759,73 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
                 data: command.data,
             },
         ),
+        ApiSubcommand::State(command) => execute_crud(state, "states", command.command),
+        ApiSubcommand::Label(command) => execute_crud(state, "labels", command.command),
+        ApiSubcommand::Cycle(command) => execute_crud(state, "cycles", command.command),
+        ApiSubcommand::Module(command) => execute_crud(state, "modules", command.command),
+        ApiSubcommand::Estimate(command) => execute_crud(state, "estimates", command.command),
+        ApiSubcommand::Intake(command) => execute_crud(state, "intake-issues", command.command),
     };
     match result {
         Ok(stdout) => CommandResult::ok(stdout),
         Err(error) => CommandResult::err(1, format!("plane: {error}\n")),
+    }
+}
+
+fn execute_crud(
+    state: &AppState,
+    segment: &str,
+    command: CrudSubcommand,
+) -> Result<String, String> {
+    match command {
+        CrudSubcommand::List(args) => api::crud::list(
+            state,
+            &args.project,
+            segment,
+            api::crud::ListOptions {
+                all: args.all,
+                fields: args.fields,
+                expand: args.expand,
+                json: args.json,
+            },
+        ),
+        CrudSubcommand::Get(args) => api::crud::get(
+            state,
+            &args.project,
+            segment,
+            &args.id,
+            api::crud::GetOptions {
+                fields: args.fields,
+                expand: args.expand,
+                json: args.json,
+            },
+        ),
+        CrudSubcommand::Create(args) => api::crud::create(
+            state,
+            &args.project,
+            segment,
+            api::crud::CreateOptions {
+                name: args.name,
+                data: args.data,
+                dry_run: args.dry_run,
+                json: args.json,
+            },
+        ),
+        CrudSubcommand::Update(args) => api::crud::update(
+            state,
+            &args.project,
+            segment,
+            &args.id,
+            api::crud::UpdateOptions {
+                name: args.name,
+                data: args.data,
+                dry_run: args.dry_run,
+                json: args.json,
+            },
+        ),
+        CrudSubcommand::Delete(args) => {
+            api::crud::delete(state, &args.project, segment, &args.id, args.dry_run)
+        }
     }
 }
 
