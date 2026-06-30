@@ -1,4 +1,4 @@
-use crate::{app::AppState, config};
+use crate::app::AppState;
 use chrono::{SecondsFormat, Utc};
 use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
@@ -145,7 +145,7 @@ struct ReleaseArtifact {
 pub fn install(state: &AppState, options: SkillInstallOptions) -> Result<String, String> {
     let _lock = StateLock::acquire(&state.config.state_dir)?;
     let mut skill_state = read_state(&state.config.skills_state_path)?;
-    let targets = install_targets(options.path.as_deref(), options.dry_run)?;
+    let targets = install_targets(state, options.path.as_deref(), options.dry_run)?;
     if targets.is_empty() {
         return Err("no default agent skill directories were found; pass --path <dir> to install to an explicit final skill directory".to_string());
     }
@@ -293,7 +293,11 @@ pub fn list(state: &AppState) -> Result<String, String> {
     Ok(output)
 }
 
-fn install_targets(path: Option<&Path>, dry_run: bool) -> Result<Vec<InstallTarget>, String> {
+fn install_targets(
+    state: &AppState,
+    path: Option<&Path>,
+    dry_run: bool,
+) -> Result<Vec<InstallTarget>, String> {
     if let Some(path) = path {
         let install_path = final_install_path(path, dry_run)?;
         return Ok(vec![InstallTarget {
@@ -302,12 +306,16 @@ fn install_targets(path: Option<&Path>, dry_run: bool) -> Result<Vec<InstallTarg
         }]);
     }
 
-    let Some(home) = config::home_dir() else {
+    let Some(home) = state.config.user_home.as_deref() else {
         return Ok(Vec::new());
     };
 
     let mut targets = Vec::new();
-    for candidate in default_agent_candidates(&home) {
+    for candidate in default_agent_candidates(
+        home,
+        state.config.codex_home.as_deref(),
+        state.config.codex_home_explicit,
+    ) {
         match default_target_for_candidate(&candidate, dry_run)? {
             Some(target) => {
                 if !targets
@@ -329,13 +337,18 @@ fn install_targets(path: Option<&Path>, dry_run: bool) -> Result<Vec<InstallTarg
     Ok(targets)
 }
 
-fn default_agent_candidates(home: &Path) -> Vec<DefaultAgentCandidate> {
-    default_agent_candidates_for_home(home, std::env::var_os("CODEX_HOME").map(PathBuf::from))
+fn default_agent_candidates(
+    home: &Path,
+    codex_home: Option<&Path>,
+    codex_home_explicit: bool,
+) -> Vec<DefaultAgentCandidate> {
+    default_agent_candidates_for_home(home, codex_home.map(Path::to_path_buf), codex_home_explicit)
 }
 
 fn default_agent_candidates_for_home(
     home: &Path,
     codex_home_override: Option<PathBuf>,
+    codex_home_explicit: bool,
 ) -> Vec<DefaultAgentCandidate> {
     let codex_home = codex_home_override
         .clone()
@@ -351,7 +364,7 @@ fn default_agent_candidates_for_home(
             agent: "codex",
             presence_dir: codex_home.clone(),
             skills_dir: codex_home.join("skills"),
-            allow_missing_presence: codex_home_override.is_some(),
+            allow_missing_presence: codex_home_explicit,
         },
         DefaultAgentCandidate {
             agent: "codex",
@@ -832,7 +845,7 @@ mod tests {
     #[test]
     fn default_candidates_use_real_codex_home() {
         let home = PathBuf::from("/home/example");
-        let candidates = default_agent_candidates_for_home(&home, None);
+        let candidates = default_agent_candidates_for_home(&home, None, false);
 
         assert!(candidates
             .iter()
@@ -846,7 +859,7 @@ mod tests {
     fn default_candidates_honor_codex_home_override() {
         let home = PathBuf::from("/home/example");
         let codex_home = PathBuf::from("/tmp/custom-codex");
-        let candidates = default_agent_candidates_for_home(&home, Some(codex_home.clone()));
+        let candidates = default_agent_candidates_for_home(&home, Some(codex_home.clone()), true);
 
         assert!(candidates.iter().any(|item| {
             item.agent == "codex"

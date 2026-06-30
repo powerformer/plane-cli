@@ -1,10 +1,25 @@
-use crate::{app::AppState, cli::execute, config::PlaneConfig};
+use crate::{
+    app::AppState,
+    cli::execute,
+    config::{ConfigEnv, ConfigOverrides, PlaneConfig},
+};
 
 fn state() -> AppState {
     AppState {
-        config: PlaneConfig::default(),
+        config: test_config(),
         version: "0.1.0-test",
     }
+}
+
+fn test_config() -> PlaneConfig {
+    PlaneConfig::resolve(
+        ConfigOverrides::default(),
+        ConfigEnv::new(
+            std::env::temp_dir(),
+            [("HOME", std::env::temp_dir().join("plane-cli-test-home"))],
+        ),
+    )
+    .expect("test config")
 }
 
 fn args(values: &[&str]) -> Vec<String> {
@@ -18,6 +33,10 @@ fn no_args_prints_help() {
     assert_eq!(result.status, 0);
     assert!(result.stdout.contains("Usage:"));
     assert!(result.stdout.contains("Commands:"));
+    assert!(result.stdout.contains("--config"));
+    assert!(result.stdout.contains("--home"));
+    assert!(result.stdout.contains("--api-base-url"));
+    assert!(result.stdout.contains("api"));
     assert!(result.stdout.contains("skill"));
     assert!(result.stderr.is_empty());
 }
@@ -59,6 +78,36 @@ fn skill_help_is_self_describing() {
     assert!(result.stdout.contains("upgrade"));
     assert!(result.stdout.contains("uninstall"));
     assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn api_help_is_self_describing() {
+    let result = execute(&state(), &args(&["api", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("X-API-Key"));
+    assert!(result.stdout.contains("api_base_url"));
+    assert!(result.stdout.contains("me"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn api_me_help_explains_smoke_path() {
+    let result = execute(&state(), &args(&["api", "me", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("/api/v1/users/me/"));
+    assert!(result.stdout.contains("--json"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn api_me_requires_api_config() {
+    let result = execute(&state(), &args(&["api", "me"]));
+
+    assert_eq!(result.status, 1);
+    assert!(result.stdout.is_empty());
+    assert!(result.stderr.contains("api_base_url is required"));
 }
 
 #[test]
