@@ -1,17 +1,28 @@
 # AGENTS
 
-`crates/plane-cli/` owns the installable `plane` binary, app state, command
-dispatch, config substrate, output model, and CLI-facing behavior.
+`crates/plane-cli/` owns the installable `plane` binary: app state, command
+dispatch, the config substrate, the Plane API client and commands, managed skill
+installation, and CLI-facing behavior. The crate is split into a `core/`
+substrate and a `commands/` surface.
 
 ## Directory Rules
 
-- `src/main.rs` wires state creation, command dispatch, output printing, and
-  exit codes.
-- `src/app.rs` owns `AppState` and build-version resolution.
-- `src/cli.rs` owns command parsing and help text. Keep CLI behavior stable and
-  update tests when output or accepted arguments move.
-- `src/config/` owns the typed configuration substrate used by app state.
-- `src/output.rs` owns command result modeling and stdout/stderr emission.
+- `src/main.rs` wires logging, command dispatch, output printing, and exit codes.
+- `src/core/` owns the substrate:
+  - `app.rs` owns `AppState` and build-version resolution.
+  - `config/` owns the typed configuration substrate used by app state.
+  - `request.rs` owns the Plane `/api/v1` client; `error.rs` its error types.
+  - `model/` holds the loose serde models for API responses.
+  - `skill.rs` owns managed skill install/upgrade/uninstall.
+  - `update.rs` owns the best-effort "newer release" check (`plane upgrade` and
+    the passive notice).
+  - `logger.rs` owns tracing setup.
+- `src/commands/` owns the command surface:
+  - `mod.rs` owns clap parsing, dispatch, and help text. Keep CLI behavior stable
+    and update tests when output or accepted arguments move.
+  - `output.rs` owns `CommandResult` modeling and stdout/stderr emission.
+  - `api/` owns the Plane API subcommands (project, work-item, generic CRUD,
+    sub-resources, members, passthrough).
 - `tests/unit/` contains CLI unit coverage. Register each new unit test module
   in `tests/unit.rs`.
 

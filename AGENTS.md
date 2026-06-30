@@ -2,11 +2,13 @@
 
 `plane-cli` is the public Rust command line interface for Plane.
 
-The current product surface is intentionally minimal: the installable `plane`
-binary owns command dispatch, help/version output, the app-state/config
-substrate, managed skill installation, and small read-only Plane API smoke
-checks. It does not yet own Plane product workflows, service orchestration, or
-project mutations.
+The installable `plane` binary owns command dispatch, help/version output, the
+app-state/config substrate, managed skill installation, an update check, and a
+write-capable Plane API surface: projects, work items and their sub-resources,
+the project resources (state/label/cycle/module/estimate/intake), members, and a
+`request` passthrough. The API client stays hand-written and loosely typed until
+a 1.x OpenAPI pass. It does not own Plane service orchestration or release
+infrastructure; those live in workflow scripts and the deployment repo.
 
 ## Directory Rules
 
@@ -47,13 +49,14 @@ commands, workflow notes, and FAQ for that subtree.
 
 ### Project Boundaries
 
-- Keep the CLI capability small until real Plane workflows are designed.
+- Grow the Plane API surface deliberately; keep the client loosely typed (no
+  generated bindings) until a 1.x OpenAPI pass, and add resources through the
+  shared CRUD abstractions rather than ad hoc.
 - Keep support operations in repo-local operator commands rather than the
   product binary.
 - Keep release metadata, artifact packaging, and smoke installation in workflow
   scripts, not in Rust product code.
-- Prefer stable help, version, output, and app-state boundaries over early
-  feature breadth.
+- Prefer stable help, version, output, and app-state boundaries.
 
 ## Common Commands
 
@@ -160,11 +163,13 @@ approval path.
 
 ## FAQ
 
-### Does `plane` Implement Plane Workflows Yet?
+### What Plane API Surface Does `plane` Cover?
 
-Not beyond read-only API smoke checks. The current CLI is a releaseable shell
-with help/version output, managed skill installation, and internal structure for
-future commands.
+`plane api` covers projects, work items and their sub-resources
+(comments/links/relations/activity), the project resources
+(state/label/cycle/module/estimate/intake), workspace and project members, and a
+`request` passthrough for anything not yet typed. The client is hand-written and
+loosely typed; Plane service orchestration and deployment stay out of the binary.
 
 ### Where Do Installer Changes Go?
 
