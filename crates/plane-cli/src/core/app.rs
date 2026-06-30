@@ -1,4 +1,4 @@
-use crate::config::{ConfigOverrides, PlaneConfig};
+use crate::core::config::{ConfigOverrides, PlaneConfig};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]

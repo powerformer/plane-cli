@@ -138,8 +138,8 @@ smoke_api_me_mock() {
   export PLANE_API_BASE_URL PLANE_API_KEY
 
   api_output=$("$plane" api me)
-  printf '%s\n' "$api_output" | grep -Fq "Plane API smoke ok" ||
-    fail "api me did not report success: $api_output"
+  printf '%s\n' "$api_output" | grep -Fq "user:" ||
+    fail "api me did not report the current user: $api_output"
   printf '%s\n' "$api_output" | grep -Fq "smoke@plane.test" ||
     fail "api me did not render the mock user: $api_output"
   if printf '%s\n' "$api_output" | grep -Fq "$api_key"; then

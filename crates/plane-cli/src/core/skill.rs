@@ -1,4 +1,4 @@
-use crate::app::AppState;
+use crate::core::app::AppState;
 use chrono::{SecondsFormat, Utc};
 use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
@@ -23,8 +23,9 @@ const USER_AGENT: &str = "plane-cli";
 pub struct SkillInstallOptions {
     pub path: Option<PathBuf>,
     pub release_url: Option<String>,
-    pub channel: String,
+    pub channel: Option<String>,
     pub version: Option<String>,
+    pub force: bool,
     pub dry_run: bool,
 }
 
@@ -150,10 +151,20 @@ pub fn install(state: &AppState, options: SkillInstallOptions) -> Result<String,
         return Err("no default agent skill directories were found; pass --path <dir> to install to an explicit final skill directory".to_string());
     }
 
+    // Bind the skill to this binary's own release by default, so install never
+    // depends on a channel's `latest` existing. Explicit --version/--channel win.
+    let version = options
+        .version
+        .clone()
+        .unwrap_or_else(|| state.version.to_string());
+    let channel = options
+        .channel
+        .clone()
+        .unwrap_or_else(|| infer_channel(&version));
     let release = resolve_release(
         state,
-        &options.channel,
-        options.version.as_deref(),
+        &channel,
+        Some(&version),
         options.release_url.as_deref(),
     )?;
     if options.dry_run {
@@ -167,7 +178,7 @@ pub fn install(state: &AppState, options: SkillInstallOptions) -> Result<String,
     let archive = download_skill_archive(release)?;
     let mut installed = Vec::new();
     for target in targets {
-        install_one(state, &archive, &target, &mut skill_state)?;
+        install_one(state, &archive, &target, &mut skill_state, options.force)?;
         installed.push(target);
     }
     write_state(&state.config.skills_state_path, &skill_state)?;
@@ -218,7 +229,7 @@ pub fn upgrade(state: &AppState, options: SkillUpgradeOptions) -> Result<String,
     }
     let archive = download_skill_archive(release)?;
     for target in &targets {
-        install_one(state, &archive, target, &mut skill_state)?;
+        install_one(state, &archive, target, &mut skill_state, true)?;
     }
     write_state(&state.config.skills_state_path, &skill_state)?;
     Ok(render_installed("upgraded", &targets, &archive.release))
@@ -530,6 +541,7 @@ fn install_one(
     archive: &SkillArchive,
     target: &InstallTarget,
     skill_state: &mut SkillState,
+    force: bool,
 ) -> Result<(), String> {
     validate_target_name(&target.path)?;
     let existing_index = skill_state
@@ -544,6 +556,13 @@ fn install_one(
             ));
         }
         ensure_existing_path_is_managed(&target.path)?;
+        if !force {
+            return Err(format!(
+                "{} already has a managed plane-cli skill; pass --force to overwrite",
+                target.path.display()
+            ));
+        }
+        info!(path = %target.path.display(), "overwriting existing managed skill");
     }
 
     let parent = target
@@ -764,6 +783,16 @@ fn render_targets(verb: &str, targets: &[InstallTarget]) -> String {
         ));
     }
     output
+}
+
+/// Default channel for a build version: `-beta` releases use beta, everything
+/// else (including dev builds) uses stable.
+pub(crate) fn infer_channel(version: &str) -> String {
+    if version.contains("-beta") {
+        "beta".to_string()
+    } else {
+        "stable".to_string()
+    }
 }
 
 fn validate_channel(channel: &str) -> Result<(), String> {

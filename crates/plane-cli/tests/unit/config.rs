@@ -1,4 +1,4 @@
-use crate::config::{ConfigEnv, ConfigOverrides, PlaneConfig};
+use crate::core::config::{ConfigEnv, ConfigOverrides, PlaneConfig};
 use std::{
     fs,
     path::{Path, PathBuf},
