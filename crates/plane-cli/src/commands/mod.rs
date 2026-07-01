@@ -310,6 +310,8 @@ enum WorkItemSubcommand {
         long_about = "List, link, and unlink Plane pages associated with a work item. These commands use the page association endpoints under work-items/<work_item>/pages/."
     )]
     Page(ApiWorkItemPageCommand),
+    #[command(about = "Attach a local file to a work item (server-proxied upload).")]
+    Attach(WorkItemAttachCommand),
 }
 
 #[derive(Debug, Args)]
@@ -440,6 +442,32 @@ struct WorkItemDeleteCommand {
     id: String,
     #[arg(long, help = "Print the request without sending it.")]
     dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct WorkItemAttachCommand {
+    #[arg(
+        long,
+        value_name = "KEY-SEQ",
+        help = "Target work item by identifier, e.g. PLANECLI-8."
+    )]
+    item: String,
+    #[arg(long, value_name = "PATH", help = "Path to the file to attach.")]
+    file: std::path::PathBuf,
+    #[arg(
+        long = "type",
+        value_name = "MIME",
+        help = "Content type (inferred from the extension if omitted)."
+    )]
+    content_type: Option<String>,
+    #[arg(
+        long,
+        value_name = "NAME",
+        help = "Stored file name (defaults to the file's name)."
+    )]
+    name: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
 }
 
 #[derive(Debug, Args)]
@@ -1378,6 +1406,16 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
                 },
             ),
             WorkItemSubcommand::Page(command) => execute_work_item_page(state, command.command),
+            WorkItemSubcommand::Attach(args) => api::work_item::attach(
+                state,
+                api::work_item::AttachOptions {
+                    item: args.item,
+                    file: args.file,
+                    content_type: args.content_type,
+                    name: args.name,
+                    json: args.json,
+                },
+            ),
         },
         ApiSubcommand::Request(command) => api::request::run(
             state,
