@@ -132,14 +132,16 @@ fn render_link_record(value: &Value, fallback_page_id: Option<&String>) -> Strin
             return render_record(page);
         }
     }
-    if fallback_page_id.is_some()
-        && field(value, "name")
-            .or_else(|| field(value, "title"))
-            .or_else(|| field(value, "display_name"))
-            .is_none()
-    {
-        let page_id = fallback_page_id.expect("checked above");
-        return format!("{}  \n", page_id);
+    match fallback_page_id {
+        Some(page_id)
+            if field(value, "name")
+                .or_else(|| field(value, "title"))
+                .or_else(|| field(value, "display_name"))
+                .is_none() =>
+        {
+            return format!("{page_id}  \n");
+        }
+        _ => {}
     }
     render_record(value)
 }
