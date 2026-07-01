@@ -167,6 +167,22 @@ the merge gate. Create and merge PRs through GitHub directly so organization
 review rules stay visible; do not use a repo-local merge helper to bypass or
 obscure the approval path.
 
+### Iterating the agent skill
+
+The distributed agent skill lives in `skills/plane-cli/` (`SKILL.md` plus
+`references/`). To change it:
+
+- Edit the source. `SKILL.md` is terminal-user-facing and smoke-checked: keep the
+  `Version Selection` section and do not introduce repo-operator wording
+  (`workflow`, `publish`/`publishing`, `R2`, `operator`, `runseal`, `release
+  behavior`). The `references/` files are not boundary-checked.
+- The whole `skills/plane-cli/` directory is packaged verbatim by
+  `.github/scripts/release/assets/package-skill.py` and published with each
+  release.
+- Ship it: edit → PR → release (`./cli.sh :release`) → users pick it up with
+  `plane skill upgrade`. A command documented in the skill must already exist in
+  the released binary, so land the code and its skill docs in the same change.
+
 ## FAQ
 
 ### What Plane API surface does `plane` cover?

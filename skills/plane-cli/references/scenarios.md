@@ -84,3 +84,52 @@ each step's output (add `--json` to parse them programmatically). Set
 
 3. Once accepted it becomes a normal work item — continue with Scenario B
    (assign, state, comment, link).
+
+## Scenario D — Cold-start a project skeleton
+
+Set up tracking for a codebase, scaling the structure to the work. **Start
+simple; only add projects and dependency edges when they are earned.**
+
+Single repo / component — one project is enough:
+
+1. Create the project; default states (Backlog/Todo/In Progress/Done/Cancelled)
+   are created for you:
+
+   ```bash
+   plane api project create --name "Acme API" --identifier ACME --json
+   ```
+
+2. Add a small, shared label taxonomy (not per-item labels):
+
+   ```bash
+   plane api label create --project <ID> --name "bug" --data '{"color":"#ef4444"}'
+   plane api label create --project <ID> --name "enhancement" --data '{"color":"#f59e0b"}'
+   ```
+
+3. Seed only real, known work as work items — do not invent a roadmap:
+
+   ```bash
+   plane api work-item create --project <ID> --name "Fix login redirect" \
+     --data '{"priority":"high","labels":["<label-id>"]}'
+   ```
+
+4. Optional: a home page with the repo URL (`plane api page create --from-file
+   home.md`) and per-item GitHub links (`plane api link create`).
+
+Multiple repos / cross-component work — one project per repo (Plane models
+project ≈ repo), plus dependency edges:
+
+5. Create a project per repo/component (e.g. a server project and a client
+   project).
+6. Put each deliverable in the project that owns it — a server endpoint in the
+   server project, the client command that consumes it in the client project.
+7. Record cross-project dependencies with `plane dep`; the dependent item is
+   blocked by the target:
+
+   ```bash
+   plane dep add --project <CLIENT_PID> --work-item <ITEM_ID> --on SERVER:12
+   plane dep ls  --project <CLIENT_PID>        # review the edges
+   ```
+
+   `dep:*` labels are the durable, queryable edge store (native relations do not
+   cross projects); `plane dep gc` prunes orphans. Keep the graph a DAG.

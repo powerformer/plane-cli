@@ -95,6 +95,11 @@ enum PlaneCommand {
     #[command(about = "Install, upgrade, list, and uninstall Plane agent skills.")]
     Skill(SkillCommand),
     #[command(
+        about = "Manage cross-project work-item dependencies (label-backed).",
+        long_about = "Manage cross-project work-item dependencies, stored as `dep:<KEY>:<SEQ>` labels on the dependent item (Plane's native relations do not cross projects). Subcommands: add, rm, ls, gc."
+    )]
+    Dep(DepCommand),
+    #[command(
         about = "Check for a newer plane and print the upgrade command.",
         long_about = "Check the release channel for a newer plane binary and print the manager command to upgrade. This only reports; it does not download or replace the binary (the manager does that)."
     )]
@@ -878,6 +883,92 @@ struct WorkspaceMemberListArgs {
 }
 
 #[derive(Debug, Args)]
+struct DepCommand {
+    #[command(subcommand)]
+    command: DepSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum DepSubcommand {
+    #[command(about = "Add a dependency edge (label dep:<KEY>:<SEQ>); target must exist.")]
+    Add(DepAddArgs),
+    #[command(about = "Remove a dependency edge (detach the label; gc prunes orphans).")]
+    Rm(DepRmArgs),
+    #[command(about = "List dependency edges and resolve their targets.")]
+    Ls(DepLsArgs),
+    #[command(about = "Delete orphan dep:* labels (dry run unless --write).")]
+    Gc(DepGcArgs),
+}
+
+#[derive(Debug, Args)]
+struct DepAddArgs {
+    #[arg(
+        long,
+        value_name = "PROJECT_ID",
+        help = "Project id (UUID) of the dependent item."
+    )]
+    project: String,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM_ID",
+        help = "Dependent work item id (UUID)."
+    )]
+    work_item: String,
+    #[arg(
+        long,
+        value_name = "KEY:SEQ",
+        help = "Dependency target, e.g. PLANE:5."
+    )]
+    on: String,
+    #[arg(long, help = "Validate and print the plan without writing.")]
+    dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+struct DepRmArgs {
+    #[arg(
+        long,
+        value_name = "PROJECT_ID",
+        help = "Project id (UUID) of the dependent item."
+    )]
+    project: String,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM_ID",
+        help = "Dependent work item id (UUID)."
+    )]
+    work_item: String,
+    #[arg(
+        long,
+        value_name = "KEY:SEQ",
+        help = "Dependency target to remove, e.g. PLANE:5."
+    )]
+    on: String,
+}
+
+#[derive(Debug, Args)]
+struct DepLsArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM_ID",
+        help = "Limit to one work item; otherwise every item in the project."
+    )]
+    work_item: Option<String>,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct DepGcArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, help = "Actually delete orphan dep:* labels (default: dry run).")]
+    write: bool,
+}
+
+#[derive(Debug, Args)]
 struct SkillCommand {
     #[command(subcommand)]
     command: SkillSubcommand,
@@ -1009,7 +1100,12 @@ pub fn execute_from_env(args: &[String]) -> CommandResult {
     match parsed.command {
         None => CommandResult::ok(help_text(version)),
         Some(PlaneCommand::Version) => CommandResult::ok(format!("plane {version}\n")),
-        Some(command @ (PlaneCommand::Api(_) | PlaneCommand::Skill(_) | PlaneCommand::Upgrade)) => {
+        Some(
+            command @ (PlaneCommand::Api(_)
+            | PlaneCommand::Skill(_)
+            | PlaneCommand::Dep(_)
+            | PlaneCommand::Upgrade),
+        ) => {
             let overrides = config_overrides_from_matches(&matches);
             let state = match AppState::from_env(overrides) {
                 Ok(state) => state,
@@ -1068,7 +1164,49 @@ fn dispatch(state: &AppState, parsed: PlaneCli) -> CommandResult {
         Some(PlaneCommand::Version) => CommandResult::ok(format!("plane {}\n", state.version)),
         Some(PlaneCommand::Api(command)) => execute_api(state, command),
         Some(PlaneCommand::Skill(command)) => execute_skill(state, command),
+        Some(PlaneCommand::Dep(command)) => execute_dep(state, command),
         Some(PlaneCommand::Upgrade) => execute_upgrade(state),
+    }
+}
+
+fn execute_dep(state: &AppState, command: DepCommand) -> CommandResult {
+    let result = match command.command {
+        DepSubcommand::Add(args) => api::dep::add(
+            state,
+            api::dep::AddOptions {
+                project: args.project,
+                work_item: args.work_item,
+                on: args.on,
+                dry_run: args.dry_run,
+            },
+        ),
+        DepSubcommand::Rm(args) => api::dep::rm(
+            state,
+            api::dep::RmOptions {
+                project: args.project,
+                work_item: args.work_item,
+                on: args.on,
+            },
+        ),
+        DepSubcommand::Ls(args) => api::dep::ls(
+            state,
+            api::dep::LsOptions {
+                project: args.project,
+                work_item: args.work_item,
+                json: args.json,
+            },
+        ),
+        DepSubcommand::Gc(args) => api::dep::gc(
+            state,
+            api::dep::GcOptions {
+                project: args.project,
+                write: args.write,
+            },
+        ),
+    };
+    match result {
+        Ok(stdout) => CommandResult::ok(stdout),
+        Err(error) => CommandResult::err(1, format!("plane: {error}\n")),
     }
 }
 
