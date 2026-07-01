@@ -13,6 +13,7 @@ Most resources share the verbs `list`, `get`, `create`, `update`, `delete`.
   `member workspace-list`.
 - **Project-scoped** (pass `--project <PROJECT_ID>`): `work-item`, `state`,
   `label`, `cycle`, `module`, `estimate`, `intake`, `page`, and `member`.
+  `work-item` also has `attach` (see below).
 - **Work-item-scoped** (pass `--project` and `--work-item`): `comment`, `link`,
   `relation`, and `activity` (read-only).
 
@@ -106,5 +107,20 @@ plane dep gc  --project <ID> [--write]                          # prune orphan d
 
 `ls` resolves each target via `GET workspaces/<slug>/work-items/<KEY>-<SEQ>/` and
 flags dangling ones. `gc` is a dry run unless `--write`.
+
+## Attaching files to a work item
+
+`plane api work-item attach` uploads a local file straight to the server
+(no direct object-storage access needed); it resolves the item by identifier
+and infers the MIME type from the extension.
+
+```bash
+plane api work-item attach --item PLANECLI-8 --file ./build.log
+plane api work-item attach --item PLANECLI-8 --file ./diagram.png --type image/png --name arch.png
+```
+
+`--item` is `<KEY>-<SEQ>`; pass `--type` to override the inferred content type
+(unknown extensions default to `application/octet-stream`, which the server
+rejects) and `--name` to override the stored file name.
 
 See [scenarios.md](./scenarios.md) for end-to-end playbooks.
