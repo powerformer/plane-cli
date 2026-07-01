@@ -1,6 +1,6 @@
 ---
 name: plane-cli
-description: Use when installing, configuring, or upgrading the Plane CLI, calling the Plane API (projects, work items, comments, members, intake), or managing plane-cli agent skills.
+description: Use when installing, configuring, or upgrading the Plane CLI, calling the Plane API (projects, work items, pages, comments, members, intake), or managing plane-cli agent skills.
 metadata:
   short-description: Bootstrap and manage Plane CLI and agent skills
 ---
@@ -96,6 +96,7 @@ validity, which are outside the CLI.
 - `plane upgrade`: check the release channel for a newer `plane` and print the command to upgrade (it reports only; the manager performs the upgrade).
 - `plane dep add|rm|ls|gc`: manage cross-project work-item dependency edges, stored as `dep:<KEY>:<SEQ>` labels; see [references/api.md](./references/api.md).
 - `plane api work-item attach --item <KEY-SEQ> --file <path>`: upload a file attachment to a work item (server-proxied; the CLI never touches object storage); see [references/api.md](./references/api.md).
+- `plane api work-item page list|link|unlink`: manage work-item page associations; see [references/api.md](./references/api.md).
 - `plane skill install`: install the `plane-cli` skill into detected agent skill directories.
 - `plane skill install --path <dir>`: install into an explicit final skill directory. The path must end with `plane-cli`.
 - `plane skill list`: list skill paths managed by Plane.
@@ -114,7 +115,8 @@ share the verbs `list`/`get`/`create`/`update`/`delete`, scoped by `--workspace`
 When you report a resource, also print its full URL — the Plane work-item browse
 link or the related GitHub issue/PR — so the user can jump straight to it.
 
-- Full resource/verb tables, field values, page (document) authoring, and the
+- Full resource/verb tables, field values, page (document) authoring, work-item
+  page associations, and the
   escape hatch: [references/api.md](./references/api.md).
 - End-to-end scenarios (stand up a project, drive a work item, triage intake):
   [references/scenarios.md](./references/scenarios.md).

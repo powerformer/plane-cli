@@ -9,3 +9,5 @@ mod core;
 mod cli_cases;
 #[path = "unit/config.rs"]
 mod config_cases;
+#[path = "unit/work_item_page.rs"]
+mod work_item_page_cases;
