@@ -307,7 +307,7 @@ enum WorkItemSubcommand {
     Delete(WorkItemDeleteCommand),
     #[command(
         about = "Manage page associations for a work item.",
-        long_about = "List, link, and unlink Plane pages associated with a work item. These commands use the page association endpoints under issues/<work_item>/pages/."
+        long_about = "List, link, and unlink Plane pages associated with a work item. These commands use the page association endpoints under work-items/<work_item>/pages/."
     )]
     Page(ApiWorkItemPageCommand),
 }

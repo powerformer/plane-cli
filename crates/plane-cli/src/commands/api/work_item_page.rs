@@ -28,11 +28,11 @@ pub struct UnlinkOptions {
 }
 
 fn collection_path(workspace: &str, project: &str, work_item: &str) -> String {
-    format!("workspaces/{workspace}/projects/{project}/issues/{work_item}/pages/")
+    format!("workspaces/{workspace}/projects/{project}/work-items/{work_item}/pages/")
 }
 
 fn item_path(workspace: &str, project: &str, work_item: &str, page_id: &str) -> String {
-    format!("workspaces/{workspace}/projects/{project}/issues/{work_item}/pages/{page_id}/")
+    format!("workspaces/{workspace}/projects/{project}/work-items/{work_item}/pages/{page_id}/")
 }
 
 pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
@@ -50,21 +50,30 @@ pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
 pub fn link(state: &AppState, options: LinkOptions) -> Result<String, String> {
     let workspace = require_workspace(state)?;
     let path = collection_path(&workspace, &options.project, &options.work_item);
-    let body = json!({ "page_ids": options.page_ids });
     if options.dry_run {
-        return Ok(format!(
-            "DRY RUN POST /api/v1/{path}\n{}\n",
-            pretty_json(&body)?
-        ));
+        let mut out = String::new();
+        for page_id in &options.page_ids {
+            let body = json!({ "page_id": page_id });
+            out.push_str(&format!(
+                "DRY RUN POST /api/v1/{path}\n{}\n",
+                pretty_json(&body)?
+            ));
+        }
+        return Ok(out);
     }
     let client = Client::from_state(state).map_err(|error| error.to_string())?;
-    let value = client
-        .post(&path, &body)
-        .map_err(|error| error.to_string())?;
-    if options.json {
-        return render_json(&value);
+    let mut results = Vec::new();
+    for page_id in &options.page_ids {
+        let body = json!({ "page_id": page_id });
+        let value = client
+            .post(&path, &body)
+            .map_err(|error| error.to_string())?;
+        results.push(value);
     }
-    Ok(render_link_result(&value))
+    if options.json {
+        return render_json(&Value::Array(results));
+    }
+    Ok(render_link_results(&results))
 }
 
 pub fn unlink(state: &AppState, options: UnlinkOptions) -> Result<String, String> {
@@ -83,14 +92,20 @@ pub fn unlink(state: &AppState, options: UnlinkOptions) -> Result<String, String
     Ok(format!("unlinked page {}\n", options.page_id))
 }
 
-fn render_link_result(value: &Value) -> String {
-    if let Some(items) = value.as_array() {
-        return render_records(items);
+fn render_link_results(values: &[Value]) -> String {
+    let mut out = String::new();
+    for value in values {
+        if let Some(items) = value.as_array() {
+            out.push_str(&render_records(items));
+            continue;
+        }
+        if let Some(items) = value.get("results").and_then(Value::as_array) {
+            out.push_str(&render_records(items));
+            continue;
+        }
+        out.push_str(&render_record(value));
     }
-    if let Some(items) = value.get("results").and_then(Value::as_array) {
-        return render_records(items);
-    }
-    render_record(value)
+    out
 }
 
 fn render_records(items: &[Value]) -> String {
@@ -126,9 +141,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn link_result_handles_results_envelope() {
-        let value = json!({"results": [{"id": "p1", "name": "Doc"}]});
-        assert_eq!(render_link_result(&value), "p1  Doc\n");
+    fn link_results_handle_results_envelope() {
+        let values = vec![json!({"results": [{"id": "p1", "name": "Doc"}]})];
+        assert_eq!(render_link_results(&values), "p1  Doc\n");
     }
 
     #[test]

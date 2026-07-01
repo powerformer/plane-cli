@@ -71,9 +71,9 @@ plane api page delete <PAGE_ID> --project <ID>
 
 `plane api work-item page` manages the page associations on a work item through:
 
-- `GET  workspaces/{workspace}/projects/{project}/issues/{work_item}/pages/`
-- `POST workspaces/{workspace}/projects/{project}/issues/{work_item}/pages/`
-- `DELETE workspaces/{workspace}/projects/{project}/issues/{work_item}/pages/{page_id}/`
+- `GET  workspaces/{workspace}/projects/{project}/work-items/{work_item}/pages/`
+- `POST workspaces/{workspace}/projects/{project}/work-items/{work_item}/pages/`
+- `DELETE workspaces/{workspace}/projects/{project}/work-items/{work_item}/pages/{page_id}/`
 
 Use it from the work-item side to inspect and update attached pages:
 
@@ -84,8 +84,9 @@ plane api work-item page link --project <ID> --work-item <WORK_ITEM_ID> <PAGE_ID
 plane api work-item page unlink --project <ID> --work-item <WORK_ITEM_ID> <PAGE_ID>
 ```
 
-`link` accepts one or more page ids and supports `--json` / `--dry-run`; list
-supports `--json`, `--all`, `--fields`, and `--expand`.
+`link` accepts one or more page ids and sends one `page_id` request per page;
+it supports `--json` / `--dry-run`. List supports `--json`, `--all`, `--fields`,
+and `--expand`.
 
 ## Escape hatch
 

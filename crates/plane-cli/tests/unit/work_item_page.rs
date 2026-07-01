@@ -45,7 +45,7 @@ fn api_work_item_page_help_lists_subcommands() {
     assert!(result.stdout.contains("list"));
     assert!(result.stdout.contains("link"));
     assert!(result.stdout.contains("unlink"));
-    assert!(result.stdout.contains("issues/<work_item>/pages"));
+    assert!(result.stdout.contains("work-items/<work_item>/pages"));
     assert!(result.stderr.is_empty());
 }
 
@@ -71,8 +71,8 @@ fn api_work_item_page_link_dry_run_prints_expected_path_and_body() {
     assert_eq!(result.status, 0);
     assert!(result
         .stdout
-        .contains("DRY RUN POST /api/v1/workspaces/acme/projects/p1/issues/wi1/pages/"));
-    assert!(result.stdout.contains("\"page_ids\""));
+        .contains("DRY RUN POST /api/v1/workspaces/acme/projects/p1/work-items/wi1/pages/"));
+    assert!(result.stdout.contains("\"page_id\""));
     assert!(result.stdout.contains("page-1"));
     assert!(result.stdout.contains("page-2"));
     assert!(result.stderr.is_empty());
@@ -99,7 +99,7 @@ fn api_work_item_page_unlink_dry_run_prints_expected_path() {
     assert_eq!(result.status, 0);
     assert_eq!(
         result.stdout,
-        "DRY RUN DELETE /api/v1/workspaces/acme/projects/p1/issues/wi1/pages/page-1/\n"
+        "DRY RUN DELETE /api/v1/workspaces/acme/projects/p1/work-items/wi1/pages/page-1/\n"
     );
     assert!(result.stderr.is_empty());
 }
