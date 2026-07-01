@@ -73,7 +73,7 @@ pub fn link(state: &AppState, options: LinkOptions) -> Result<String, String> {
     if options.json {
         return render_json(&Value::Array(results));
     }
-    Ok(render_link_results(&results))
+    Ok(render_link_results(&results, &options.page_ids))
 }
 
 pub fn unlink(state: &AppState, options: UnlinkOptions) -> Result<String, String> {
@@ -92,20 +92,56 @@ pub fn unlink(state: &AppState, options: UnlinkOptions) -> Result<String, String
     Ok(format!("unlinked page {}\n", options.page_id))
 }
 
-fn render_link_results(values: &[Value]) -> String {
+fn render_link_results(values: &[Value], page_ids: &[String]) -> String {
     let mut out = String::new();
-    for value in values {
+    for (index, value) in values.iter().enumerate() {
         if let Some(items) = value.as_array() {
-            out.push_str(&render_records(items));
+            out.push_str(&render_link_records(items));
             continue;
         }
         if let Some(items) = value.get("results").and_then(Value::as_array) {
-            out.push_str(&render_records(items));
+            out.push_str(&render_link_records(items));
             continue;
         }
-        out.push_str(&render_record(value));
+        out.push_str(&render_link_record(value, page_ids.get(index)));
     }
     out
+}
+
+fn render_link_records(items: &[Value]) -> String {
+    if items.is_empty() {
+        return "no results\n".to_string();
+    }
+    let mut out = String::new();
+    for item in items {
+        out.push_str(&render_link_record(item, None));
+    }
+    out
+}
+
+fn render_link_record(value: &Value, fallback_page_id: Option<&String>) -> String {
+    if let Some(page) = value.get("page") {
+        if let Some(page_id) = page
+            .as_str()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            return format!("{page_id}  \n");
+        }
+        if page.is_object() {
+            return render_record(page);
+        }
+    }
+    if fallback_page_id.is_some()
+        && field(value, "name")
+            .or_else(|| field(value, "title"))
+            .or_else(|| field(value, "display_name"))
+            .is_none()
+    {
+        let page_id = fallback_page_id.expect("checked above");
+        return format!("{}  \n", page_id);
+    }
+    render_record(value)
 }
 
 fn render_records(items: &[Value]) -> String {
@@ -143,7 +179,36 @@ mod tests {
     #[test]
     fn link_results_handle_results_envelope() {
         let values = vec![json!({"results": [{"id": "p1", "name": "Doc"}]})];
-        assert_eq!(render_link_results(&values), "p1  Doc\n");
+        assert_eq!(render_link_results(&values, &[]), "p1  Doc\n");
+    }
+
+    #[test]
+    fn link_results_render_nested_page_for_create_response() {
+        let values = vec![json!({
+            "id": "link-1",
+            "page": {
+                "id": "page-1",
+                "name": "Launch notes"
+            }
+        })];
+
+        assert_eq!(
+            render_link_results(&values, &["page-1".to_string()]),
+            "page-1  Launch notes\n"
+        );
+    }
+
+    #[test]
+    fn link_results_fall_back_to_requested_page_id() {
+        let values = vec![json!({
+            "id": "link-1",
+            "created_at": "2026-07-01T00:00:00Z"
+        })];
+
+        assert_eq!(
+            render_link_results(&values, &["page-1".to_string()]),
+            "page-1  \n"
+        );
     }
 
     #[test]
