@@ -105,4 +105,21 @@ print its full URL so they can open it directly:
 
 Prefer absolute URLs over bare ids in any summary you write back to the user.
 
+## Cross-project dependencies (`plane dep`)
+
+Plane's native relations do not cross projects, so cross-project dependency
+edges are stored as `dep:<KEY>:<SEQ>` labels on the *dependent* item (an item
+carrying `dep:PLANE:5` is blocked by PLANE-5). `plane dep` is the surface over
+them:
+
+```bash
+plane dep add --project <ID> --work-item <WI_ID> --on PLANE:5   # target must exist
+plane dep rm  --project <ID> --work-item <WI_ID> --on PLANE:5   # detach (label kept)
+plane dep ls  --project <ID> [--work-item <WI_ID>]              # list + resolve targets
+plane dep gc  --project <ID> [--write]                          # prune orphan dep:* labels
+```
+
+`ls` resolves each target via `GET workspaces/<slug>/work-items/<KEY>-<SEQ>/` and
+flags dangling ones. `gc` is a dry run unless `--write`.
+
 See [scenarios.md](./scenarios.md) for end-to-end playbooks.

@@ -1,5 +1,6 @@
 pub mod comment;
 pub mod crud;
+pub mod dep;
 pub mod generic;
 pub mod me;
 pub mod page;

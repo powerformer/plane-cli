@@ -115,6 +115,28 @@ fn api_me_requires_api_key() {
 }
 
 #[test]
+fn dep_help_lists_subcommands() {
+    let result = execute(&state(), &args(&["dep", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("add"));
+    assert!(result.stdout.contains("rm"));
+    assert!(result.stdout.contains("ls"));
+    assert!(result.stdout.contains("gc"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn dep_add_help_explains_target() {
+    let result = execute(&state(), &args(&["dep", "add", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("--on"));
+    assert!(result.stdout.contains("KEY:SEQ"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
 fn upgrade_help_explains_report_only() {
     let result = execute(&state(), &args(&["upgrade", "--help"]));
 
