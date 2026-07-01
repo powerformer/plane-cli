@@ -111,6 +111,20 @@ cargo run --locked -p plane-cli -- help
 
 These four are the pre-PR gate; CI reruns them in the `guard` workflow.
 
+- **Testing against a real backend:** keep a gitignored `.local/.plane/plane.toml`
+  and pass it with `--config`, e.g. `plane --config .local/.plane/plane.toml api me`.
+  Relative paths resolve from the config file's directory, so this keeps managed
+  state under `.local/`:
+
+  ```toml
+  home = "."
+  state_dir = "state"
+  skills_state_path = "state/skills.json"
+
+  api_base_url = "https://plane.example.com"
+  api_key = "plane-api-token"
+  workspace_slug = "workspace-slug"
+  ```
 - **Branch names:** `<area>/<kebab-case-slug>`, where `<area>` matches the
   touched crate or concern (e.g. `cli/help-surface`, `release/prepare-0.1.0`).
 - **Commit subject:** `<area>: <imperative summary>` on one line, ideally <= 72
