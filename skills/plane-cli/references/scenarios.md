@@ -66,6 +66,15 @@ each step's output (add `--json` to parse them programmatically). Set
    Work item: `<SERVER_URL>/<workspace>/browse/WEB-<sequence_id>/`
    PR: `https://github.com/acme/web/pull/42`
 
+5. Attach a design note page to the work item when the implementation needs
+   extra context:
+
+   ```bash
+   plane api page create --project <project-id> --name "Login Redirect Notes" --body "## Context" --json
+   plane api work-item page link --project <project-id> --work-item <work-item-id> <page-id>
+   plane api work-item page list --project <project-id> --work-item <work-item-id>
+   ```
+
 ## Scenario C — Triage an intake item
 
 1. List pending intake items and inspect one:

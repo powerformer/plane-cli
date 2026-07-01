@@ -13,8 +13,9 @@ Most resources share the verbs `list`, `get`, `create`, `update`, `delete`.
   `member workspace-list`.
 - **Project-scoped** (pass `--project <PROJECT_ID>`): `work-item`, `state`,
   `label`, `cycle`, `module`, `estimate`, `intake`, `page`, and `member`.
-- **Work-item-scoped** (pass `--project` and `--work-item`): `comment`, `link`,
-  `relation`, and `activity` (read-only).
+- **Work-item-scoped** (pass `--project` and `--work-item`): `page`
+  (`list`/`link`/`unlink`), `comment`, `link`, `relation`, and `activity`
+  (read-only).
 
 ## Conventions
 
@@ -65,6 +66,26 @@ plane api page get <PAGE_ID> --project <ID> --content
 plane api page list --project <ID>
 plane api page delete <PAGE_ID> --project <ID>
 ```
+
+## Work-item page associations
+
+`plane api work-item page` manages the page associations on a work item through:
+
+- `GET  workspaces/{workspace}/projects/{project}/issues/{work_item}/pages/`
+- `POST workspaces/{workspace}/projects/{project}/issues/{work_item}/pages/`
+- `DELETE workspaces/{workspace}/projects/{project}/issues/{work_item}/pages/{page_id}/`
+
+Use it from the work-item side to inspect and update attached pages:
+
+```bash
+plane api work-item page list --project <ID> --work-item <WORK_ITEM_ID>
+plane api work-item page link --project <ID> --work-item <WORK_ITEM_ID> <PAGE_ID>
+plane api work-item page link --project <ID> --work-item <WORK_ITEM_ID> <PAGE_ID_1> <PAGE_ID_2> --dry-run
+plane api work-item page unlink --project <ID> --work-item <WORK_ITEM_ID> <PAGE_ID>
+```
+
+`link` accepts one or more page ids and supports `--json` / `--dry-run`; list
+supports `--json`, `--all`, `--fields`, and `--expand`.
 
 ## Escape hatch
 

@@ -6,6 +6,7 @@ pub mod page;
 pub mod project;
 pub mod request;
 pub mod work_item;
+pub mod work_item_page;
 
 pub use me::ApiMeOptions;
 

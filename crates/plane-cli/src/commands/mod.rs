@@ -305,6 +305,53 @@ enum WorkItemSubcommand {
     Update(WorkItemUpdateCommand),
     #[command(about = "Delete a work item by id.")]
     Delete(WorkItemDeleteCommand),
+    #[command(
+        about = "Manage page associations for a work item.",
+        long_about = "List, link, and unlink Plane pages associated with a work item. These commands use the page association endpoints under issues/<work_item>/pages/."
+    )]
+    Page(ApiWorkItemPageCommand),
+}
+
+#[derive(Debug, Args)]
+struct ApiWorkItemPageCommand {
+    #[command(subcommand)]
+    command: WorkItemPageSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum WorkItemPageSubcommand {
+    #[command(about = "List pages associated with a work item.")]
+    List(WiSubListArgs),
+    #[command(about = "Link one or more pages to a work item.")]
+    Link(WorkItemPageLinkArgs),
+    #[command(about = "Unlink a page from a work item.")]
+    Unlink(WorkItemPageUnlinkArgs),
+}
+
+#[derive(Debug, Args)]
+struct WorkItemPageLinkArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    work_item: String,
+    #[arg(value_name = "PAGE_ID", help = "Page id (UUID).", required = true)]
+    page_ids: Vec<String>,
+    #[arg(long, help = "Print the request body without sending it.")]
+    dry_run: bool,
+    #[arg(long, help = "Print the raw JSON response.")]
+    json: bool,
+}
+
+#[derive(Debug, Args)]
+struct WorkItemPageUnlinkArgs {
+    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    project: String,
+    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    work_item: String,
+    #[arg(value_name = "PAGE_ID", help = "Page id (UUID).")]
+    page_id: String,
+    #[arg(long, help = "Print the request without sending it.")]
+    dry_run: bool,
 }
 
 #[derive(Debug, Args)]
@@ -1330,6 +1377,7 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
                     dry_run: args.dry_run,
                 },
             ),
+            WorkItemSubcommand::Page(command) => execute_work_item_page(state, command.command),
         },
         ApiSubcommand::Request(command) => api::request::run(
             state,
@@ -1355,6 +1403,44 @@ fn execute_api(state: &AppState, command: ApiCommand) -> CommandResult {
     match result {
         Ok(stdout) => CommandResult::ok(stdout),
         Err(error) => CommandResult::err(1, format!("plane: {error}\n")),
+    }
+}
+
+fn execute_work_item_page(
+    state: &AppState,
+    command: WorkItemPageSubcommand,
+) -> Result<String, String> {
+    match command {
+        WorkItemPageSubcommand::List(args) => api::work_item_page::list(
+            state,
+            api::work_item_page::ListOptions {
+                project: args.project,
+                work_item: args.work_item,
+                all: args.all,
+                fields: args.fields,
+                expand: args.expand,
+                json: args.json,
+            },
+        ),
+        WorkItemPageSubcommand::Link(args) => api::work_item_page::link(
+            state,
+            api::work_item_page::LinkOptions {
+                project: args.project,
+                work_item: args.work_item,
+                page_ids: args.page_ids,
+                dry_run: args.dry_run,
+                json: args.json,
+            },
+        ),
+        WorkItemPageSubcommand::Unlink(args) => api::work_item_page::unlink(
+            state,
+            api::work_item_page::UnlinkOptions {
+                project: args.project,
+                work_item: args.work_item,
+                page_id: args.page_id,
+                dry_run: args.dry_run,
+            },
+        ),
     }
 }
 

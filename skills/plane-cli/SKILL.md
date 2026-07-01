@@ -1,6 +1,6 @@
 ---
 name: plane-cli
-description: Use when installing, configuring, or upgrading the Plane CLI, calling the Plane API (projects, work items, comments, members, intake), or managing plane-cli agent skills.
+description: Use when installing, configuring, or upgrading the Plane CLI, calling the Plane API (projects, work items, pages, comments, members, intake), or managing plane-cli agent skills.
 metadata:
   short-description: Bootstrap and manage Plane CLI and agent skills
 ---
@@ -113,7 +113,8 @@ share the verbs `list`/`get`/`create`/`update`/`delete`, scoped by `--workspace`
 When you report a resource, also print its full URL — the Plane work-item browse
 link or the related GitHub issue/PR — so the user can jump straight to it.
 
-- Full resource/verb tables, field values, page (document) authoring, and the
+- Full resource/verb tables, field values, page (document) authoring, work-item
+  page associations, and the
   escape hatch: [references/api.md](./references/api.md).
 - End-to-end scenarios (stand up a project, drive a work item, triage intake):
   [references/scenarios.md](./references/scenarios.md).
