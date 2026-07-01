@@ -95,6 +95,7 @@ validity, which are outside the CLI.
 - `plane --version`: show the installed binary version.
 - `plane upgrade`: check the release channel for a newer `plane` and print the command to upgrade (it reports only; the manager performs the upgrade).
 - `plane dep add|rm|ls|gc`: manage cross-project work-item dependency edges, stored as `dep:<KEY>:<SEQ>` labels; see [references/api.md](./references/api.md).
+- `plane api work-item attach --item <KEY-SEQ> --file <path>`: upload a file attachment to a work item (server-proxied; the CLI never touches object storage); see [references/api.md](./references/api.md).
 - `plane skill install`: install the `plane-cli` skill into detected agent skill directories.
 - `plane skill install --path <dir>`: install into an explicit final skill directory. The path must end with `plane-cli`.
 - `plane skill list`: list skill paths managed by Plane.

@@ -94,6 +94,36 @@ fn api_help_is_self_describing() {
 }
 
 #[test]
+fn work_item_attach_help_is_self_describing() {
+    let result = execute(&state(), &args(&["api", "work-item", "attach", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("--item"));
+    assert!(result.stdout.contains("--file"));
+    assert!(result.stdout.contains("PLANECLI-8"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn work_item_attach_rejects_bad_item_ref() {
+    let result = execute(
+        &state(),
+        &args(&[
+            "api",
+            "work-item",
+            "attach",
+            "--item",
+            "PLANECLI",
+            "--file",
+            "Cargo.toml",
+        ]),
+    );
+
+    assert_ne!(result.status, 0);
+    assert!(result.stderr.contains("--item"));
+}
+
+#[test]
 fn api_me_help_explains_smoke_path() {
     let result = execute(&state(), &args(&["api", "me", "--help"]));
 
