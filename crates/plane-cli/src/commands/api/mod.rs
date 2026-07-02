@@ -4,6 +4,7 @@ pub mod generic;
 pub mod me;
 pub mod page;
 pub mod project;
+pub mod reference;
 pub mod request;
 pub mod work_item;
 pub mod work_item_page;
@@ -29,6 +30,22 @@ pub(crate) fn require_workspace(state: &AppState) -> Result<String, String> {
             "workspace is required; set --workspace, workspace_slug in plane.toml, or PLANE_WORKSPACE_SLUG"
                 .to_string()
         })
+}
+
+/// Resolve the workspace slug and API client together, so a cold start with an
+/// empty config reports every missing setting in one run instead of one per
+/// run. Commands that must stay client-free before `--dry-run` keep calling
+/// `require_workspace` directly.
+pub(crate) fn workspace_client(state: &AppState) -> Result<(String, Client), String> {
+    match (require_workspace(state), Client::from_state(state)) {
+        (Ok(workspace), Ok(client)) => Ok((workspace, client)),
+        (Err(_), Err(_)) => Err(
+            "api_key and workspace are required; add both to plane.toml (or pass --api-key/--workspace, or set PLANE_API_KEY/PLANE_WORKSPACE_SLUG):\n\n  api_key = \"<PLANE_API_TOKEN>\"\n  workspace_slug = \"<WORKSPACE_SLUG>\""
+                .to_string(),
+        ),
+        (Err(workspace), _) => Err(workspace),
+        (_, Err(client)) => Err(client.to_string()),
+    }
 }
 
 /// Render any JSON value as the pretty-printed `--json` output.

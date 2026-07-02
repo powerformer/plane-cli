@@ -2,7 +2,7 @@ use crate::core::app::AppState;
 use crate::core::error::ApiError;
 use serde_json::Value;
 use std::io::Read;
-use tracing::{debug, info};
+use tracing::debug;
 
 const USER_AGENT: &str = "plane-cli";
 
@@ -77,7 +77,7 @@ impl Client {
         file: &MultipartFile,
     ) -> Result<Value, ApiError> {
         let url = endpoint(&self.base_url, path);
-        info!(method = "POST", url = %url, "calling Plane API (multipart)");
+        debug!(method = "POST", url = %url, "calling Plane API (multipart)");
         let boundary = multipart_boundary();
         let body = build_multipart_body(&boundary, fields, file);
         let response = ureq::post(&url)
@@ -100,7 +100,7 @@ impl Client {
         body: Option<&Value>,
     ) -> Result<Value, ApiError> {
         let url = endpoint(&self.base_url, path);
-        info!(method, url = %url, "calling Plane API");
+        debug!(method, url = %url, "calling Plane API");
         let mut request = ureq::request(method, &url)
             .set("User-Agent", &self.user_agent)
             .set("Accept", "application/json")

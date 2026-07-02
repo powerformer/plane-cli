@@ -8,9 +8,8 @@
 //! and the collaborative editor hydrates from it on first open.
 
 use super::crud;
-use super::{render_json, require_workspace};
+use super::{reference, render_json, workspace_client};
 use crate::core::app::AppState;
-use crate::core::request::Client;
 use pulldown_cmark::{html, Options, Parser};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -196,8 +195,8 @@ pub fn get(
         );
     }
     // `--content` prints only the document body HTML.
-    let workspace = require_workspace(state)?;
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let project = reference::resolve_project(state, project)?;
+    let (workspace, client) = workspace_client(state)?;
     let path = format!("workspaces/{workspace}/projects/{project}/pages/{id}/");
     let value = client.get(&path, &[]).map_err(|error| error.to_string())?;
     if options.json {
