@@ -11,12 +11,26 @@ Most resources share the verbs `list`, `get`, `create`, `update`, `delete`.
 - **Workspace-scoped:** `project`
   (`list`/`get`/`create`/`update`/`delete`/`archive`/`unarchive`/`summary`) and
   `member workspace-list`.
-- **Project-scoped** (pass `--project <PROJECT_ID>`): `work-item`, `state`,
+- **Project-scoped** (pass `--project <PROJECT>`): `work-item`, `state`,
   `label`, `cycle`, `module`, `estimate`, `intake`, `page`, and `member`.
   `work-item` also has `attach` (see below).
-- **Work-item-scoped** (pass `--project` and `--work-item`): `page`
-  (`list`/`link`/`unlink`), `comment`, `link`, `relation`, and `activity`
-  (read-only).
+- **Work-item-scoped** (pass `--work-item`, plus `--project` for UUID ids):
+  `page` (`list`/`link`/`unlink`), `comment`, `link`, `relation`, and
+  `activity` (read-only).
+
+## Human-readable references
+
+Anywhere a command takes a project or work-item UUID, the human-readable form
+works too:
+
+- **Project:** the project identifier, e.g. `--project OPEND` or
+  `plane api project get OPEND`.
+- **Work item:** `<KEY>-<SEQ>`, e.g. `plane api work-item get OPEND-372` or
+  `plane api comment list --work-item OPEND-372`. A `<KEY>-<SEQ>` reference
+  carries its own project, so `--project` may be omitted.
+
+UUIDs pass through untouched (no extra request); human-readable references cost
+one read-only resolution call, so `--dry-run` stays offline only with UUIDs.
 
 ## Conventions
 

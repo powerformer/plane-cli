@@ -1,10 +1,9 @@
 use super::{
-    as_query_refs, collect_list, list_json, parse_data_object, pretty_json, query_pairs,
-    render_json, require_workspace,
+    as_query_refs, collect_list, list_json, parse_data_object, pretty_json, query_pairs, reference,
+    render_json, require_workspace, workspace_client,
 };
 use crate::core::app::AppState;
 use crate::core::model::project::Project;
-use crate::core::request::Client;
 use serde_json::Value;
 
 pub struct ListOptions {
@@ -29,8 +28,7 @@ pub struct CreateOptions {
 }
 
 pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
-    let workspace = require_workspace(state)?;
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (workspace, client) = workspace_client(state)?;
     let path = format!("workspaces/{workspace}/projects/");
     let base = query_pairs(&options.fields, &options.expand);
     if options.json {
@@ -41,8 +39,8 @@ pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
 }
 
 pub fn get(state: &AppState, id: &str, options: GetOptions) -> Result<String, String> {
-    let workspace = require_workspace(state)?;
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let id = reference::resolve_project(state, id)?;
+    let (workspace, client) = workspace_client(state)?;
     let pairs = query_pairs(&options.fields, &options.expand);
     let value = client
         .get(
@@ -74,7 +72,7 @@ pub fn create(state: &AppState, options: CreateOptions) -> Result<String, String
             pretty_json(&body)?
         ));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     let value = client
         .post(&path, &body)
         .map_err(|error| error.to_string())?;
@@ -95,6 +93,7 @@ pub struct UpdateOptions {
 }
 
 pub fn update(state: &AppState, options: UpdateOptions) -> Result<String, String> {
+    let id = reference::resolve_project(state, &options.id)?;
     let workspace = require_workspace(state)?;
     let mut body = parse_data_object(&options.data)?;
     if let Some(name) = &options.name {
@@ -102,14 +101,14 @@ pub fn update(state: &AppState, options: UpdateOptions) -> Result<String, String
             .expect("data is an object")
             .insert("name".to_string(), Value::String(name.clone()));
     }
-    let path = format!("workspaces/{workspace}/projects/{}/", options.id);
+    let path = format!("workspaces/{workspace}/projects/{id}/");
     if options.dry_run {
         return Ok(format!(
             "DRY RUN PATCH /api/v1/{path}\n{}\n",
             pretty_json(&body)?
         ));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     let value = client
         .patch(&path, &body)
         .map_err(|error| error.to_string())?;
@@ -122,23 +121,25 @@ pub fn update(state: &AppState, options: UpdateOptions) -> Result<String, String
 }
 
 pub fn delete(state: &AppState, id: &str, dry_run: bool) -> Result<String, String> {
+    let id = reference::resolve_project(state, id)?;
     let workspace = require_workspace(state)?;
     let path = format!("workspaces/{workspace}/projects/{id}/");
     if dry_run {
         return Ok(format!("DRY RUN DELETE /api/v1/{path}\n"));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     client.delete(&path).map_err(|error| error.to_string())?;
     Ok(format!("deleted project {id}\n"))
 }
 
 pub fn archive(state: &AppState, id: &str, dry_run: bool) -> Result<String, String> {
+    let id = reference::resolve_project(state, id)?;
     let workspace = require_workspace(state)?;
     let path = format!("workspaces/{workspace}/projects/{id}/archive/");
     if dry_run {
         return Ok(format!("DRY RUN POST /api/v1/{path}\n"));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     client
         .post(&path, &serde_json::json!({}))
         .map_err(|error| error.to_string())?;
@@ -146,19 +147,20 @@ pub fn archive(state: &AppState, id: &str, dry_run: bool) -> Result<String, Stri
 }
 
 pub fn unarchive(state: &AppState, id: &str, dry_run: bool) -> Result<String, String> {
+    let id = reference::resolve_project(state, id)?;
     let workspace = require_workspace(state)?;
     let path = format!("workspaces/{workspace}/projects/{id}/archive/");
     if dry_run {
         return Ok(format!("DRY RUN DELETE /api/v1/{path}\n"));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     client.delete(&path).map_err(|error| error.to_string())?;
     Ok(format!("unarchived project {id}\n"))
 }
 
 pub fn summary(state: &AppState, id: &str) -> Result<String, String> {
-    let workspace = require_workspace(state)?;
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let id = reference::resolve_project(state, id)?;
+    let (workspace, client) = workspace_client(state)?;
     let value = client
         .get(
             &format!("workspaces/{workspace}/projects/{id}/summary/"),

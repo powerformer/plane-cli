@@ -1,11 +1,10 @@
 use super::{
-    as_query_refs, collect_list, list_json, parse_data_object, pretty_json, query_pairs,
-    render_json, require_workspace,
+    as_query_refs, collect_list, list_json, parse_data_object, pretty_json, query_pairs, reference,
+    render_json, require_workspace, workspace_client,
 };
 use crate::core::app::AppState;
-use crate::core::error::ApiError;
 use crate::core::model::work_item::WorkItem;
-use crate::core::request::{Client, MultipartFile};
+use crate::core::request::MultipartFile;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -18,7 +17,7 @@ pub struct ListOptions {
 }
 
 pub struct GetOptions {
-    pub project: String,
+    pub project: Option<String>,
     pub id: String,
     pub fields: Option<String>,
     pub expand: Option<String>,
@@ -34,7 +33,7 @@ pub struct CreateOptions {
 }
 
 pub struct UpdateOptions {
-    pub project: String,
+    pub project: Option<String>,
     pub id: String,
     pub name: Option<String>,
     pub data: Option<String>,
@@ -43,7 +42,7 @@ pub struct UpdateOptions {
 }
 
 pub struct DeleteOptions {
-    pub project: String,
+    pub project: Option<String>,
     pub id: String,
     pub dry_run: bool,
 }
@@ -57,12 +56,9 @@ pub struct AttachOptions {
 }
 
 pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
-    let workspace = require_workspace(state)?;
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
-    let path = format!(
-        "workspaces/{workspace}/projects/{}/work-items/",
-        options.project
-    );
+    let project = reference::resolve_project(state, &options.project)?;
+    let (workspace, client) = workspace_client(state)?;
+    let path = format!("workspaces/{workspace}/projects/{project}/work-items/");
     let base = query_pairs(&options.fields, &options.expand);
     if options.json {
         return list_json(&client, &path, &base, options.all);
@@ -72,14 +68,14 @@ pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
 }
 
 pub fn get(state: &AppState, options: GetOptions) -> Result<String, String> {
-    let workspace = require_workspace(state)?;
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let resolved = reference::resolve_work_item(state, options.project.as_deref(), &options.id)?;
+    let (workspace, client) = workspace_client(state)?;
     let pairs = query_pairs(&options.fields, &options.expand);
     let value = client
         .get(
             &format!(
                 "workspaces/{workspace}/projects/{}/work-items/{}/",
-                options.project, options.id
+                resolved.project, resolved.id
             ),
             &as_query_refs(&pairs),
         )
@@ -93,22 +89,20 @@ pub fn get(state: &AppState, options: GetOptions) -> Result<String, String> {
 }
 
 pub fn create(state: &AppState, options: CreateOptions) -> Result<String, String> {
+    let project = reference::resolve_project(state, &options.project)?;
     let workspace = require_workspace(state)?;
     let mut body = parse_data_object(&options.data)?;
     body.as_object_mut()
         .expect("data is an object")
         .insert("name".to_string(), Value::String(options.name.clone()));
-    let path = format!(
-        "workspaces/{workspace}/projects/{}/work-items/",
-        options.project
-    );
+    let path = format!("workspaces/{workspace}/projects/{project}/work-items/");
     if options.dry_run {
         return Ok(format!(
             "DRY RUN POST /api/v1/{path}\n{}\n",
             pretty_json(&body)?
         ));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     let value = client
         .post(&path, &body)
         .map_err(|error| error.to_string())?;
@@ -121,6 +115,7 @@ pub fn create(state: &AppState, options: CreateOptions) -> Result<String, String
 }
 
 pub fn update(state: &AppState, options: UpdateOptions) -> Result<String, String> {
+    let resolved = reference::resolve_work_item(state, options.project.as_deref(), &options.id)?;
     let workspace = require_workspace(state)?;
     let mut body = parse_data_object(&options.data)?;
     if let Some(name) = &options.name {
@@ -130,7 +125,7 @@ pub fn update(state: &AppState, options: UpdateOptions) -> Result<String, String
     }
     let path = format!(
         "workspaces/{workspace}/projects/{}/work-items/{}/",
-        options.project, options.id
+        resolved.project, resolved.id
     );
     if options.dry_run {
         return Ok(format!(
@@ -138,7 +133,7 @@ pub fn update(state: &AppState, options: UpdateOptions) -> Result<String, String
             pretty_json(&body)?
         ));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     let value = client
         .patch(&path, &body)
         .map_err(|error| error.to_string())?;
@@ -151,15 +146,16 @@ pub fn update(state: &AppState, options: UpdateOptions) -> Result<String, String
 }
 
 pub fn delete(state: &AppState, options: DeleteOptions) -> Result<String, String> {
+    let resolved = reference::resolve_work_item(state, options.project.as_deref(), &options.id)?;
     let workspace = require_workspace(state)?;
     let path = format!(
         "workspaces/{workspace}/projects/{}/work-items/{}/",
-        options.project, options.id
+        resolved.project, resolved.id
     );
     if options.dry_run {
         return Ok(format!("DRY RUN DELETE /api/v1/{path}\n"));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     client.delete(&path).map_err(|error| error.to_string())?;
     Ok(format!("deleted work item {}\n", options.id))
 }
@@ -167,8 +163,12 @@ pub fn delete(state: &AppState, options: DeleteOptions) -> Result<String, String
 /// Attach a local file to a work item by `KEY-SEQ`. The bytes are streamed to
 /// the server-proxied upload endpoint in one request; the CLI never touches S3.
 pub fn attach(state: &AppState, options: AttachOptions) -> Result<String, String> {
-    let (key, seq) = parse_item_ref(&options.item)?;
-    let workspace = require_workspace(state)?;
+    let (key, seq) = reference::parse_work_item_ref(&options.item).ok_or_else(|| {
+        format!(
+            "--item must be <KEY>-<SEQ>, e.g. PLANECLI-8 (got `{}`)",
+            options.item
+        )
+    })?;
     let bytes = std::fs::read(&options.file)
         .map_err(|error| format!("failed to read {}: {error}", options.file.display()))?;
     let filename = options
@@ -187,28 +187,10 @@ pub fn attach(state: &AppState, options: AttachOptions) -> Result<String, String
         .clone()
         .unwrap_or_else(|| guess_content_type(&options.file));
 
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
     // Resolve KEY-SEQ to the issue and its project (the upload URL is scoped by
     // both). The by-identifier endpoint is workspace-scoped.
-    let item = client
-        .get(
-            &format!("workspaces/{workspace}/work-items/{key}-{seq}/"),
-            &[],
-        )
-        .map_err(|error| match error {
-            ApiError::Http { status: 404, .. } => {
-                format!("work item {key}-{seq} not found in workspace {workspace}")
-            }
-            other => other.to_string(),
-        })?;
-    let issue_id = item
-        .get("id")
-        .and_then(Value::as_str)
-        .ok_or_else(|| format!("work item {key}-{seq} response is missing id"))?;
-    let project_id = item
-        .get("project")
-        .and_then(Value::as_str)
-        .ok_or_else(|| format!("work item {key}-{seq} response is missing project"))?;
+    let resolved = reference::fetch_work_item_by_identifier(state, &key, &seq)?;
+    let (workspace, client) = workspace_client(state)?;
 
     let file_part = MultipartFile {
         field: "asset",
@@ -219,7 +201,8 @@ pub fn attach(state: &AppState, options: AttachOptions) -> Result<String, String
     let response = client
         .post_multipart(
             &format!(
-                "workspaces/{workspace}/projects/{project_id}/work-items/{issue_id}/attachments/upload/"
+                "workspaces/{workspace}/projects/{}/work-items/{}/attachments/upload/",
+                resolved.project, resolved.id
             ),
             &[],
             &file_part,
@@ -234,23 +217,6 @@ pub fn attach(state: &AppState, options: AttachOptions) -> Result<String, String
         "attached {filename} ({} bytes, {content_type}) to {key}-{seq} (attachment {attachment_id})\n",
         bytes.len()
     ))
-}
-
-/// Parse `--item <KEY>-<SEQ>` (e.g. `PLANECLI-8`) into an uppercased project key
-/// and numeric sequence.
-fn parse_item_ref(item: &str) -> Result<(String, String), String> {
-    let (key, seq) = item
-        .rsplit_once('-')
-        .ok_or_else(|| format!("--item must be <KEY>-<SEQ>, e.g. PLANECLI-8 (got `{item}`)"))?;
-    let key = key.trim();
-    let seq = seq.trim();
-    if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric()) {
-        return Err(format!("invalid work item key in --item: `{item}`"));
-    }
-    if seq.is_empty() || !seq.chars().all(|c| c.is_ascii_digit()) {
-        return Err(format!("sequence in --item must be a number: `{item}`"));
-    }
-    Ok((key.to_ascii_uppercase(), seq.to_string()))
 }
 
 /// Best-effort MIME type from the file extension, biased toward types the server
@@ -304,26 +270,6 @@ fn render_one(item: &WorkItem) -> String {
 mod tests {
     use super::*;
     use std::path::Path;
-
-    #[test]
-    fn parse_item_ref_uppercases_key_and_keeps_seq() {
-        assert_eq!(
-            parse_item_ref("planecli-8").unwrap(),
-            ("PLANECLI".to_string(), "8".to_string())
-        );
-        assert_eq!(
-            parse_item_ref("PLANE-12").unwrap(),
-            ("PLANE".to_string(), "12".to_string())
-        );
-    }
-
-    #[test]
-    fn parse_item_ref_rejects_bad_shapes() {
-        assert!(parse_item_ref("PLANECLI").is_err()); // no seq
-        assert!(parse_item_ref("PLANECLI-").is_err()); // empty seq
-        assert!(parse_item_ref("PLANECLI-x").is_err()); // non-numeric seq
-        assert!(parse_item_ref("-8").is_err()); // empty key
-    }
 
     #[test]
     fn guess_content_type_maps_common_and_defaults() {

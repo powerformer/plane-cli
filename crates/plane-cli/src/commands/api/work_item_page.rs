@@ -1,10 +1,12 @@
-use super::{collect_list, list_json, pretty_json, query_pairs, render_json, require_workspace};
+use super::{
+    collect_list, list_json, pretty_json, query_pairs, reference, render_json, require_workspace,
+    workspace_client,
+};
 use crate::core::app::AppState;
-use crate::core::request::Client;
 use serde_json::{json, Value};
 
 pub struct ListOptions {
-    pub project: String,
+    pub project: Option<String>,
     pub work_item: String,
     pub all: bool,
     pub fields: Option<String>,
@@ -13,7 +15,7 @@ pub struct ListOptions {
 }
 
 pub struct LinkOptions {
-    pub project: String,
+    pub project: Option<String>,
     pub work_item: String,
     pub page_ids: Vec<String>,
     pub dry_run: bool,
@@ -21,7 +23,7 @@ pub struct LinkOptions {
 }
 
 pub struct UnlinkOptions {
-    pub project: String,
+    pub project: Option<String>,
     pub work_item: String,
     pub page_id: String,
     pub dry_run: bool,
@@ -36,9 +38,10 @@ fn item_path(workspace: &str, project: &str, work_item: &str, page_id: &str) -> 
 }
 
 pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
-    let workspace = require_workspace(state)?;
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
-    let path = collection_path(&workspace, &options.project, &options.work_item);
+    let resolved =
+        reference::resolve_work_item(state, options.project.as_deref(), &options.work_item)?;
+    let (workspace, client) = workspace_client(state)?;
+    let path = collection_path(&workspace, &resolved.project, &resolved.id);
     let base = query_pairs(&options.fields, &options.expand);
     if options.json {
         return list_json(&client, &path, &base, options.all);
@@ -48,8 +51,10 @@ pub fn list(state: &AppState, options: ListOptions) -> Result<String, String> {
 }
 
 pub fn link(state: &AppState, options: LinkOptions) -> Result<String, String> {
+    let resolved =
+        reference::resolve_work_item(state, options.project.as_deref(), &options.work_item)?;
     let workspace = require_workspace(state)?;
-    let path = collection_path(&workspace, &options.project, &options.work_item);
+    let path = collection_path(&workspace, &resolved.project, &resolved.id);
     if options.dry_run {
         let mut out = String::new();
         for page_id in &options.page_ids {
@@ -61,7 +66,7 @@ pub fn link(state: &AppState, options: LinkOptions) -> Result<String, String> {
         }
         return Ok(out);
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     let mut results = Vec::new();
     for page_id in &options.page_ids {
         let body = json!({ "page_id": page_id });
@@ -77,17 +82,19 @@ pub fn link(state: &AppState, options: LinkOptions) -> Result<String, String> {
 }
 
 pub fn unlink(state: &AppState, options: UnlinkOptions) -> Result<String, String> {
+    let resolved =
+        reference::resolve_work_item(state, options.project.as_deref(), &options.work_item)?;
     let workspace = require_workspace(state)?;
     let path = item_path(
         &workspace,
-        &options.project,
-        &options.work_item,
+        &resolved.project,
+        &resolved.id,
         &options.page_id,
     );
     if options.dry_run {
         return Ok(format!("DRY RUN DELETE /api/v1/{path}\n"));
     }
-    let client = Client::from_state(state).map_err(|error| error.to_string())?;
+    let (_, client) = workspace_client(state)?;
     client.delete(&path).map_err(|error| error.to_string())?;
     Ok(format!("unlinked page {}\n", options.page_id))
 }

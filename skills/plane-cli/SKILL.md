@@ -111,6 +111,9 @@ Beyond `api me`, the CLI wraps the Plane REST API as typed subcommands —
 share the verbs `list`/`get`/`create`/`update`/`delete`, scoped by `--workspace`,
 `--project`, and `--work-item`, with `--json`, `--all`, `--fields`/`--expand`,
 `--data`, and `--dry-run`. A `request` passthrough covers anything not yet typed.
+Projects and work items accept human-readable references wherever a UUID is
+accepted: `plane api work-item get OPEND-372` resolves the item (and its
+project) by identifier, and `--project OPEND` matches the project identifier.
 
 When you report a resource, also print its full URL — the Plane work-item browse
 link or the related GitHub issue/PR — so the user can jump straight to it.
