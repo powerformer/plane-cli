@@ -211,7 +211,10 @@ struct ProjectListCommand {
 
 #[derive(Debug, Args)]
 struct ProjectGetCommand {
-    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     id: String,
     #[arg(
         long,
@@ -245,7 +248,10 @@ struct ProjectCreateCommand {
 
 #[derive(Debug, Args)]
 struct ProjectUpdateCommand {
-    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     id: String,
     #[arg(long, help = "New project name.")]
     name: Option<String>,
@@ -259,7 +265,10 @@ struct ProjectUpdateCommand {
 
 #[derive(Debug, Args)]
 struct ProjectDeleteCommand {
-    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     id: String,
     #[arg(long, help = "Print the request without sending it.")]
     dry_run: bool,
@@ -267,7 +276,10 @@ struct ProjectDeleteCommand {
 
 #[derive(Debug, Args)]
 struct ProjectArchiveCommand {
-    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     id: String,
     #[arg(long, help = "Print the request without sending it.")]
     dry_run: bool,
@@ -275,7 +287,10 @@ struct ProjectArchiveCommand {
 
 #[derive(Debug, Args)]
 struct ProjectUnarchiveCommand {
-    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     id: String,
     #[arg(long, help = "Print the request without sending it.")]
     dry_run: bool,
@@ -283,7 +298,10 @@ struct ProjectUnarchiveCommand {
 
 #[derive(Debug, Args)]
 struct ProjectSummaryCommand {
-    #[arg(value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     id: String,
 }
 
@@ -332,9 +350,17 @@ enum WorkItemPageSubcommand {
 
 #[derive(Debug, Args)]
 struct WorkItemPageLinkArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     work_item: String,
     #[arg(value_name = "PAGE_ID", help = "Page id (UUID).", required = true)]
     page_ids: Vec<String>,
@@ -346,9 +372,17 @@ struct WorkItemPageLinkArgs {
 
 #[derive(Debug, Args)]
 struct WorkItemPageUnlinkArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     work_item: String,
     #[arg(value_name = "PAGE_ID", help = "Page id (UUID).")]
     page_id: String,
@@ -358,7 +392,11 @@ struct WorkItemPageUnlinkArgs {
 
 #[derive(Debug, Args)]
 struct WorkItemListCommand {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(long, help = "Follow cursor pages and list every result.")]
     all: bool,
@@ -380,9 +418,16 @@ struct WorkItemListCommand {
 
 #[derive(Debug, Args)]
 struct WorkItemGetCommand {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     id: String,
     #[arg(
         long,
@@ -402,7 +447,11 @@ struct WorkItemGetCommand {
 
 #[derive(Debug, Args)]
 struct WorkItemCreateCommand {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(long, help = "Work item title (required).")]
     name: String,
@@ -420,9 +469,16 @@ struct WorkItemCreateCommand {
 
 #[derive(Debug, Args)]
 struct WorkItemUpdateCommand {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     id: String,
     #[arg(long, help = "New work item title.")]
     name: Option<String>,
@@ -436,9 +492,16 @@ struct WorkItemUpdateCommand {
 
 #[derive(Debug, Args)]
 struct WorkItemDeleteCommand {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     id: String,
     #[arg(long, help = "Print the request without sending it.")]
     dry_run: bool,
@@ -543,7 +606,11 @@ enum CrudSubcommand {
 
 #[derive(Debug, Args)]
 struct CrudListArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(long, help = "Follow cursor pages and list every result.")]
     all: bool,
@@ -565,7 +632,11 @@ struct CrudListArgs {
 
 #[derive(Debug, Args)]
 struct CrudGetArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(value_name = "ID", help = "Resource id (UUID).")]
     id: String,
@@ -587,7 +658,11 @@ struct CrudGetArgs {
 
 #[derive(Debug, Args)]
 struct CrudCreateArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(long, help = "Resource name (required).")]
     name: String,
@@ -605,7 +680,11 @@ struct CrudCreateArgs {
 
 #[derive(Debug, Args)]
 struct CrudUpdateArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(value_name = "ID", help = "Resource id (UUID).")]
     id: String,
@@ -621,7 +700,11 @@ struct CrudUpdateArgs {
 
 #[derive(Debug, Args)]
 struct CrudDeleteArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(value_name = "ID", help = "Resource id (UUID).")]
     id: String,
@@ -675,7 +758,11 @@ struct PageBodyArgs {
 
 #[derive(Debug, Args)]
 struct PageGetArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(value_name = "ID", help = "Page id (UUID).")]
     id: String,
@@ -699,7 +786,11 @@ struct PageGetArgs {
 
 #[derive(Debug, Args)]
 struct PageCreateArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(long, help = "Page title (required).")]
     name: String,
@@ -721,7 +812,11 @@ struct PageCreateArgs {
 
 #[derive(Debug, Args)]
 struct PageUpdateArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(value_name = "ID", help = "Page id (UUID).")]
     id: String,
@@ -773,9 +868,17 @@ enum WiSubCommand {
 
 #[derive(Debug, Args)]
 struct WiSubListArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     work_item: String,
     #[arg(long, help = "Follow cursor pages and list every result.")]
     all: bool,
@@ -789,9 +892,17 @@ struct WiSubListArgs {
 
 #[derive(Debug, Args)]
 struct WiSubGetArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     work_item: String,
     #[arg(value_name = "ID", help = "Sub-resource id (UUID).")]
     id: String,
@@ -805,9 +916,17 @@ struct WiSubGetArgs {
 
 #[derive(Debug, Args)]
 struct WiSubCreateArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     work_item: String,
     #[arg(long, value_name = "JSON", help = "Request body as a JSON object.")]
     data: Option<String>,
@@ -819,9 +938,17 @@ struct WiSubCreateArgs {
 
 #[derive(Debug, Args)]
 struct WiSubUpdateArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     work_item: String,
     #[arg(value_name = "ID", help = "Sub-resource id (UUID).")]
     id: String,
@@ -835,9 +962,17 @@ struct WiSubUpdateArgs {
 
 #[derive(Debug, Args)]
 struct WiSubDeleteArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
-    project: String,
-    #[arg(long, value_name = "WORK_ITEM_ID", help = "Work item id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND); optional when the work item is <KEY>-<SEQ>."
+    )]
+    project: Option<String>,
+    #[arg(
+        long,
+        value_name = "WORK_ITEM",
+        help = "Work item id (UUID) or identifier <KEY>-<SEQ> (e.g. OPEND-372)."
+    )]
     work_item: String,
     #[arg(value_name = "ID", help = "Sub-resource id (UUID).")]
     id: String,
@@ -883,7 +1018,11 @@ enum MemberSubCommand {
 
 #[derive(Debug, Args)]
 struct MemberListArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(long, help = "Follow cursor pages and list every result.")]
     all: bool,
@@ -897,7 +1036,11 @@ struct MemberListArgs {
 
 #[derive(Debug, Args)]
 struct MemberGetArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(value_name = "ID", help = "Member id (UUID).")]
     id: String,
@@ -911,7 +1054,11 @@ struct MemberGetArgs {
 
 #[derive(Debug, Args)]
 struct MemberCreateArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(long, value_name = "JSON", help = "Request body as a JSON object.")]
     data: Option<String>,
@@ -923,7 +1070,11 @@ struct MemberCreateArgs {
 
 #[derive(Debug, Args)]
 struct MemberUpdateArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(value_name = "ID", help = "Member id (UUID).")]
     id: String,
@@ -937,7 +1088,11 @@ struct MemberUpdateArgs {
 
 #[derive(Debug, Args)]
 struct MemberDeleteArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(value_name = "ID", help = "Member id (UUID).")]
     id: String,
@@ -979,8 +1134,8 @@ enum DepSubcommand {
 struct DepAddArgs {
     #[arg(
         long,
-        value_name = "PROJECT_ID",
-        help = "Project id (UUID) of the dependent item."
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND) of the dependent item."
     )]
     project: String,
     #[arg(
@@ -1003,8 +1158,8 @@ struct DepAddArgs {
 struct DepRmArgs {
     #[arg(
         long,
-        value_name = "PROJECT_ID",
-        help = "Project id (UUID) of the dependent item."
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND) of the dependent item."
     )]
     project: String,
     #[arg(
@@ -1023,7 +1178,11 @@ struct DepRmArgs {
 
 #[derive(Debug, Args)]
 struct DepLsArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(
         long,
@@ -1037,7 +1196,11 @@ struct DepLsArgs {
 
 #[derive(Debug, Args)]
 struct DepGcArgs {
-    #[arg(long, value_name = "PROJECT_ID", help = "Project id (UUID).")]
+    #[arg(
+        long,
+        value_name = "PROJECT",
+        help = "Project id (UUID) or identifier (e.g. OPEND)."
+    )]
     project: String,
     #[arg(long, help = "Actually delete orphan dep:* labels (default: dry run).")]
     write: bool,
@@ -1615,13 +1778,15 @@ fn execute_page(state: &AppState, command: PageSubcommand) -> Result<String, Str
 
 fn wi_sub_collection(
     state: &AppState,
-    project: &str,
+    project: Option<&str>,
     work_item: &str,
     segment: &str,
 ) -> Result<String, String> {
     let workspace = api::require_workspace(state)?;
+    let resolved = api::reference::resolve_work_item(state, project, work_item)?;
     Ok(format!(
-        "workspaces/{workspace}/projects/{project}/work-items/{work_item}/{segment}/"
+        "workspaces/{workspace}/projects/{}/work-items/{}/{segment}/",
+        resolved.project, resolved.id
     ))
 }
 
@@ -1632,7 +1797,7 @@ fn execute_wi_sub(
 ) -> Result<String, String> {
     match command {
         WiSubCommand::List(a) => {
-            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            let collection = wi_sub_collection(state, a.project.as_deref(), &a.work_item, segment)?;
             api::generic::list(
                 state,
                 &collection,
@@ -1645,7 +1810,7 @@ fn execute_wi_sub(
             )
         }
         WiSubCommand::Get(a) => {
-            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            let collection = wi_sub_collection(state, a.project.as_deref(), &a.work_item, segment)?;
             api::generic::get(
                 state,
                 &collection,
@@ -1658,7 +1823,7 @@ fn execute_wi_sub(
             )
         }
         WiSubCommand::Create(a) => {
-            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            let collection = wi_sub_collection(state, a.project.as_deref(), &a.work_item, segment)?;
             api::generic::create(
                 state,
                 &collection,
@@ -1670,7 +1835,7 @@ fn execute_wi_sub(
             )
         }
         WiSubCommand::Update(a) => {
-            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            let collection = wi_sub_collection(state, a.project.as_deref(), &a.work_item, segment)?;
             api::generic::update(
                 state,
                 &collection,
@@ -1683,7 +1848,7 @@ fn execute_wi_sub(
             )
         }
         WiSubCommand::Delete(a) => {
-            let collection = wi_sub_collection(state, &a.project, &a.work_item, segment)?;
+            let collection = wi_sub_collection(state, a.project.as_deref(), &a.work_item, segment)?;
             api::generic::delete(state, &collection, &a.id, a.dry_run)
         }
     }
@@ -1692,7 +1857,8 @@ fn execute_wi_sub(
 fn execute_activity(state: &AppState, command: ActivitySubCommand) -> Result<String, String> {
     match command {
         ActivitySubCommand::List(a) => {
-            let collection = wi_sub_collection(state, &a.project, &a.work_item, "activities")?;
+            let collection =
+                wi_sub_collection(state, a.project.as_deref(), &a.work_item, "activities")?;
             api::generic::list(
                 state,
                 &collection,
@@ -1705,7 +1871,8 @@ fn execute_activity(state: &AppState, command: ActivitySubCommand) -> Result<Str
             )
         }
         ActivitySubCommand::Get(a) => {
-            let collection = wi_sub_collection(state, &a.project, &a.work_item, "activities")?;
+            let collection =
+                wi_sub_collection(state, a.project.as_deref(), &a.work_item, "activities")?;
             api::generic::get(
                 state,
                 &collection,
@@ -1722,6 +1889,7 @@ fn execute_activity(state: &AppState, command: ActivitySubCommand) -> Result<Str
 
 fn member_collection(state: &AppState, project: &str) -> Result<String, String> {
     let workspace = api::require_workspace(state)?;
+    let project = api::reference::resolve_project(state, project)?;
     Ok(format!(
         "workspaces/{workspace}/projects/{project}/members/"
     ))

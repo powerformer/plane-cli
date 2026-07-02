@@ -235,7 +235,9 @@ fn state_with_workspace(slug: &str) -> AppState {
 
 #[test]
 fn api_page_create_dry_run_converts_markdown() {
-    // dry-run returns before any network call; it only needs a workspace.
+    // dry-run with UUID references returns before any network call; it only
+    // needs a workspace. (Human-readable references cost a read-only
+    // resolution request first, so they additionally need an api_key.)
     let result = execute(
         &state_with_workspace("acme"),
         &args(&[
@@ -243,7 +245,7 @@ fn api_page_create_dry_run_converts_markdown() {
             "page",
             "create",
             "--project",
-            "p1",
+            "11111111-2222-4333-8444-555555555555",
             "--name",
             "Doc",
             "--body",
@@ -254,9 +256,63 @@ fn api_page_create_dry_run_converts_markdown() {
 
     assert_eq!(result.status, 0);
     assert!(result.stdout.contains("DRY RUN POST"));
-    assert!(result.stdout.contains("workspaces/acme/projects/p1/pages/"));
+    assert!(result
+        .stdout
+        .contains("workspaces/acme/projects/11111111-2222-4333-8444-555555555555/pages/"));
     assert!(result.stdout.contains("<h1>Title</h1>"));
     assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn work_item_get_uuid_requires_project() {
+    // A bare UUID does not carry its project, so --project must be given;
+    // the error points at the KEY-SEQ form that works without it.
+    let result = execute(
+        &state_with_workspace("acme"),
+        &args(&[
+            "api",
+            "work-item",
+            "get",
+            "11111111-2222-4333-8444-555555555555",
+        ]),
+    );
+
+    assert_eq!(result.status, 1);
+    assert!(result.stderr.contains("--project"));
+    assert!(result.stderr.contains("<KEY>-<SEQ>"));
+}
+
+#[test]
+fn work_item_get_rejects_malformed_reference() {
+    let result = execute(
+        &state_with_workspace("acme"),
+        &args(&["api", "work-item", "get", "OPEND-"]),
+    );
+
+    assert_eq!(result.status, 1);
+    assert!(result.stderr.contains("OPEND-372"));
+}
+
+#[test]
+fn work_item_get_help_documents_reference_forms() {
+    let result = execute(&state(), &args(&["api", "work-item", "get", "--help"]));
+
+    assert_eq!(result.status, 0);
+    assert!(result.stdout.contains("OPEND-372"));
+    assert!(result.stdout.contains("identifier"));
+    assert!(result.stderr.is_empty());
+}
+
+#[test]
+fn missing_api_key_and_workspace_report_together() {
+    // A cold start with an empty config should surface every missing setting
+    // in one run, not one per run.
+    let result = execute(&state(), &args(&["api", "work-item", "get", "OPEND-372"]));
+
+    assert_eq!(result.status, 1);
+    assert!(result.stderr.contains("api_key"));
+    assert!(result.stderr.contains("workspace"));
+    assert!(result.stderr.contains("plane.toml"));
 }
 
 #[test]

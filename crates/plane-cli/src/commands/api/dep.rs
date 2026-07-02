@@ -48,7 +48,8 @@ pub struct GcOptions {
 
 /// Add an edge: validate the target exists (forward references are rejected),
 /// ensure the `dep:<KEY>:<SEQ>` label exists, and attach it to the item.
-pub fn add(state: &AppState, options: AddOptions) -> Result<String, String> {
+pub fn add(state: &AppState, mut options: AddOptions) -> Result<String, String> {
+    options.project = super::reference::resolve_project(state, &options.project)?;
     let workspace = require_workspace(state)?;
     let (key, seq) = parse_on(&options.on)?;
     let client = Client::from_state(state).map_err(|error| error.to_string())?;
@@ -97,7 +98,8 @@ pub fn add(state: &AppState, options: AddOptions) -> Result<String, String> {
 
 /// Remove an edge: detach the `dep:<KEY>:<SEQ>` label from the item. The label
 /// object is kept; `gc` prunes it if it becomes orphaned.
-pub fn rm(state: &AppState, options: RmOptions) -> Result<String, String> {
+pub fn rm(state: &AppState, mut options: RmOptions) -> Result<String, String> {
+    options.project = super::reference::resolve_project(state, &options.project)?;
     let workspace = require_workspace(state)?;
     let (key, seq) = parse_on(&options.on)?;
     let label_name = dep_label_name(&key, &seq);
@@ -139,7 +141,8 @@ pub fn rm(state: &AppState, options: RmOptions) -> Result<String, String> {
 }
 
 /// List edges for one item (or every item in the project) and resolve targets.
-pub fn ls(state: &AppState, options: LsOptions) -> Result<String, String> {
+pub fn ls(state: &AppState, mut options: LsOptions) -> Result<String, String> {
+    options.project = super::reference::resolve_project(state, &options.project)?;
     let workspace = require_workspace(state)?;
     let client = Client::from_state(state).map_err(|error| error.to_string())?;
 
@@ -225,7 +228,8 @@ pub fn ls(state: &AppState, options: LsOptions) -> Result<String, String> {
 }
 
 /// Delete `dep:*` labels that no item carries. Dry run unless `--write`.
-pub fn gc(state: &AppState, options: GcOptions) -> Result<String, String> {
+pub fn gc(state: &AppState, mut options: GcOptions) -> Result<String, String> {
+    options.project = super::reference::resolve_project(state, &options.project)?;
     let workspace = require_workspace(state)?;
     let client = Client::from_state(state).map_err(|error| error.to_string())?;
 

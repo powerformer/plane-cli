@@ -51,6 +51,8 @@ fn api_work_item_page_help_lists_subcommands() {
 
 #[test]
 fn api_work_item_page_link_dry_run_prints_expected_path_and_body() {
+    // dry-run with UUID references stays offline; human-readable references
+    // resolve over the network first.
     let result = execute(
         &state_with_workspace("acme"),
         &args(&[
@@ -59,9 +61,9 @@ fn api_work_item_page_link_dry_run_prints_expected_path_and_body() {
             "page",
             "link",
             "--project",
-            "p1",
+            "11111111-2222-4333-8444-555555555555",
             "--work-item",
-            "wi1",
+            "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
             "page-1",
             "page-2",
             "--dry-run",
@@ -71,7 +73,7 @@ fn api_work_item_page_link_dry_run_prints_expected_path_and_body() {
     assert_eq!(result.status, 0);
     assert!(result
         .stdout
-        .contains("DRY RUN POST /api/v1/workspaces/acme/projects/p1/work-items/wi1/pages/"));
+        .contains("DRY RUN POST /api/v1/workspaces/acme/projects/11111111-2222-4333-8444-555555555555/work-items/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/pages/"));
     assert!(result.stdout.contains("\"page_id\""));
     assert!(result.stdout.contains("page-1"));
     assert!(result.stdout.contains("page-2"));
@@ -88,9 +90,9 @@ fn api_work_item_page_unlink_dry_run_prints_expected_path() {
             "page",
             "unlink",
             "--project",
-            "p1",
+            "11111111-2222-4333-8444-555555555555",
             "--work-item",
-            "wi1",
+            "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
             "page-1",
             "--dry-run",
         ]),
@@ -99,7 +101,7 @@ fn api_work_item_page_unlink_dry_run_prints_expected_path() {
     assert_eq!(result.status, 0);
     assert_eq!(
         result.stdout,
-        "DRY RUN DELETE /api/v1/workspaces/acme/projects/p1/work-items/wi1/pages/page-1/\n"
+        "DRY RUN DELETE /api/v1/workspaces/acme/projects/11111111-2222-4333-8444-555555555555/work-items/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/pages/page-1/\n"
     );
     assert!(result.stderr.is_empty());
 }
